@@ -37,7 +37,9 @@ ui <- dashboardPage(
     collapsed = FALSE,
     fluidRow(
       tags$div(
-        column(12, fileInput("raw", label = "Upload Raw Data")),
+        column(12, 
+               tags$head(tags$style(".progress-bar{background-color:#00a65a;}")),
+               fileInput("raw", label = "Upload Raw Data")),
         column(12, numericInput("potn.ctrb", label = "Input Potential Cumulated con%", value = 100, min = 0, max = 100)),
         column(12, numericInput("productivity", label = "Productivity lowest limit by year", value = 0, min = 0)),
         column(12, numericInput("product", label = "Product sales lowest limit by year", value = 0, min = 0)),
