@@ -45,8 +45,8 @@ server <- function(input, output, session) {
     ) %>% 
       setDF() %>% 
       select(`PHA code`, TERMINALCODE, Province, City, `Potential-2019(MAT201904)`, 
-             大区, `MAT201904销售指标（RMB）`, FTE)
-    colnames(raw) <- c("code1", "code2", "province", "city", "potential", "region", "mat_target", "fte")
+             大区, `MAT201904销售指标（RMB）`, FTE, flag)
+    colnames(raw) <- c("code1", "code2", "province", "city", "potential", "region", "mat_target", "fte", "flag")
     
     raw
   })
@@ -70,26 +70,29 @@ server <- function(input, output, session) {
       prop <- input$potn.ctrb
     }
     
+    plot_data <- bind_rows(conc_data()$data1, conc_data()$data2) %>% 
+      arrange(potential_cumctrb)
+    
     plot1 <- plot_ly(hoverinfo = "x+y")
     
     plot1 <- plot1 %>% 
-      add_trace(x = as.numeric(rownames(conc_data())),
-                y = conc_data()$potential_cumctrb,
+      add_trace(x = as.numeric(rownames(plot_data)),
+                y = plot_data$potential_cumctrb,
                 type = "scatter",
                 mode = "lines") %>% 
-      add_markers(x = nrow(conc_data()[which(conc_data()$potential_cumctrb <= prop), ]),
+      add_markers(x = nrow(plot_data[which(plot_data$potential_cumctrb <= prop), ]),
                   y = prop,
                   color = "red")
     
     if (prop != 0) {
       plot1 <- plot1 %>% 
-        add_segments(x = nrow(conc_data()[which(conc_data()$potential_cumctrb <= prop), ]),
-                     xend = nrow(conc_data()[which(conc_data()$potential_cumctrb <= prop), ]),
+        add_segments(x = nrow(plot_data[which(plot_data$potential_cumctrb <= prop), ]),
+                     xend = nrow(plot_data[which(plot_data$potential_cumctrb <= prop), ]),
                      y = 0,
                      yend = prop,
                      color = "red") %>%
         add_segments(x = 0,
-                     xend = nrow(conc_data()[which(conc_data()$potential_cumctrb <= prop), ]),
+                     xend = nrow(plot_data[which(plot_data$potential_cumctrb <= prop), ]),
                      y = prop,
                      yend = prop,
                      color = "red")
@@ -124,7 +127,7 @@ server <- function(input, output, session) {
               fillcolor = "grey",
               opacity = 0.3,
               x0 = 0,
-              x1 = nrow(conc_data()[which(conc_data()$potential_cumctrb <= prop), ]),
+              x1 = nrow(plot_data[which(plot_data$potential_cumctrb <= prop), ]),
               xref = "x",
               y0 = 0,
               y1 = prop,
@@ -143,10 +146,12 @@ server <- function(input, output, session) {
   
   ## abandoned province
   observeEvent(conc_data(), {
+    aban_data <- bind_rows(conc_data()$data1, conc_data()$data2)
+    
     updateSelectInput(session,
                       inputId = "aban",
                       label = "Abandoned Provinces",
-                      choices = sort(unique(conc_data()$province)),
+                      choices = sort(unique(aban_data$province)),
                       selected = NULL)
   })
   
@@ -156,7 +161,14 @@ server <- function(input, output, session) {
     if (is.null(conc_data()))
       return(NULL)
     
-    plot_data <- conc_data()
+    if (is.na(input$potn.ctrb)) {
+      prop <- 0
+    } else {
+      prop <- input$potn.ctrb
+    }
+    
+    plot_data <- conc_data()$data2 %>% 
+      filter(potential_cumctrb <= prop)
     
     if (is.null(input$aban)) {
       plot_data <- plot_data
@@ -183,6 +195,7 @@ server <- function(input, output, session) {
     }
     
     prov_city <- plot_data %>% 
+      bind_rows(conc_data()$data1) %>% 
       select(province, city) %>% 
       distinct() %>% 
       filter(!is.na(city)) %>% 
@@ -191,6 +204,7 @@ server <- function(input, output, session) {
       ungroup()
     
     plot_data1 <- plot_data %>% 
+      bind_rows(conc_data()$data1) %>% 
       group_by(province) %>% 
       summarise(`Hospital#` = n(),
                 `FTE#` = sum(fte, na.rm = TRUE),
@@ -253,7 +267,16 @@ server <- function(input, output, session) {
     if (is.null(conc_data()))
       return(NULL)
     
-    plot_data <- conc_data()
+    if (is.na(input$potn.ctrb)) {
+      prop <- 0
+    } else {
+      prop <- input$potn.ctrb
+    }
+    
+    plot_data <- conc_data()$data2
+    
+    plot_data <- conc_data()$data2 %>% 
+      filter(potential_cumctrb <= prop)
     
     if (is.null(input$aban)) {
       plot_data <- plot_data
@@ -286,6 +309,7 @@ server <- function(input, output, session) {
     }
     
     prov_city <- plot_data %>% 
+      bind_rows(conc_data()$data1) %>% 
       select(province, city) %>% 
       distinct() %>% 
       filter(!is.na(city)) %>% 
@@ -294,6 +318,7 @@ server <- function(input, output, session) {
       ungroup()
     
     plot_data1 <- plot_data %>% 
+      bind_rows(conc_data()$data1) %>% 
       group_by(province) %>% 
       summarise(`Hospital#` = n(),
                 `FTE#` = sum(fte, na.rm = TRUE),
