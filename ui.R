@@ -39,10 +39,10 @@ ui <- dashboardPage(
       tags$div(
         column(12, fileInput("raw", label = "Upload Raw Data")),
         column(12, numericInput("potn.ctrb", label = "Input Potential Cumulated con%", value = 100, min = 0, max = 100)),
-        column(12, selectInput("aban", label = "Abandoned Provinces", choices = "", selected = "", multiple = TRUE)),
         column(12, numericInput("productivity", label = "Productivity lowest limit by year", value = 0, min = 0)),
         column(12, numericInput("product", label = "Product sales lowest limit by year", value = 0, min = 0)),
-        column(12, numericInput("roi", label = "ROI lowest limit by year", value = 0, min = 0))
+        column(12, numericInput("roi", label = "ROI lowest limit by year", value = 0, min = 0)),
+        column(12, selectInput("aban", label = "Abandoned Provinces", choices = "", selected = "", multiple = TRUE))
       )
     )
   ),
@@ -64,15 +64,26 @@ ui <- dashboardPage(
             collapsible = FALSE,
             width = 12,
             tags$div(
-              plotlyOutput("conc", height = "auto")
-            ),
-            tags$div(
-              dataTableOutput("table")
+              plotlyOutput("conc", height = "500px")
             )
           ),
           
+          br(),
           box(
-            title = "By province",
+            title = "Summary Table",
+            status = "success",
+            solidHeader = TRUE,
+            collapsible = FALSE,
+            width = 12,
+            align = "center",
+            tags$div(
+              dataTableOutput("table", width = "800px")
+            )
+          ),
+          
+          br(),
+          box(
+            title = "By Province",
             status = "success",
             solidHeader = TRUE,
             collapsible = FALSE,
@@ -83,12 +94,22 @@ ui <- dashboardPage(
                 collapsible = FALSE,
                 width = 12,
                 tags$div(
-                  column(3, selectInput("region", label = "Region", choices = "", selected = "", multiple = TRUE)),
-                  column(3, selectInput("kpi", label = "KPI", choices = "", selected = "", multiple = FALSE))
+                  column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
+                                        selected = "All", multiple = TRUE)),
+                  column(6, selectInput("kpi", label = "KPI", choices = c("Hospital#", "City#", "FTE#", "Avg. Productivity", "ROI"), 
+                                        selected = "Hospital#", multiple = FALSE))
+                ),
+                style = "background:#F0FFF0;"
+              )
+            ),
+            fluidRow(
+              box(
+                solidHeader = TRUE,
+                collapsible = FALSE,
+                width = 12, 
+                tags$div(
+                  plotlyOutput("bar", height = "250px")
                 )
-              ),
-              tags$div(
-                plotlyOutput("bar", height = "auto")
               )
             )
           )
