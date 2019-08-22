@@ -105,11 +105,12 @@ ui <- dashboardPage(
                 width = 12,
                 tags$div(
                   column(3, numericInput("productivity", label = "Productivity lowest limit by year", value = 0, min = 0)),
-                  column(3, numericInput("roi", label = "ROI lowest limit by year", value = 0, min = 0)),
-                  column(3, numericInput("growth", label = "Product sales growth rate lowest limit by year", value = 0, min = 0)),
+                  column(3, numericInput("roi", label = "ROI lowest limit by year (%)", value = 0, min = 0)),
+                  column(3, numericInput("growth", label = "Product sales growth rate lowest limit by year (%)", value = 0, min = 0)),
                   # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
                   #                       selected = "All", multiple = TRUE)),
-                  column(3, selectInput("kpi1", label = "KPI", choices = c("Hospital#", "City#", "FTE#"), 
+                  column(3, selectInput("kpi1", label = "KPI", 
+                                        choices = c("Hospital#" = "hospital_num", "City#" = "city_num", "FTE#" = "fte"), 
                                         selected = "Hospital#", multiple = FALSE))
                 ),
                 style = "background:#C8E6FF;"
@@ -137,8 +138,9 @@ ui <- dashboardPage(
                   # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
                   #                       selected = "All", multiple = TRUE)),
                   column(9),
-                  column(3, selectInput("kpi2", label = "KPI", choices = c("Avg. Productivity", "ROI"), 
-                                        selected = "Hospital#", multiple = FALSE))
+                  column(3, selectInput("kpi2", label = "KPI", 
+                                        choices = c("Avg. Productivity" = "productivity", "ROI" = "roi"), 
+                                        selected = "Avg. Productivity", multiple = FALSE))
                 ),
                 style = "background:#C8E6FF;"
               )
@@ -167,7 +169,7 @@ ui <- dashboardPage(
           collapsible = FALSE,
           width = 12,
           tags$div(
-            column(3, selectInput("scenario", label = "Scenario", choices = c("Max Return", "Max Productivity", "All Standing"), 
+            column(3, selectInput("scenario", label = "Scenario", choices = c("Max ROI", "Max Productivity", "All Standing"), 
                                   selected = "Max Return", multiple = FALSE)),
             column(9)
           ),
@@ -226,7 +228,8 @@ ui <- dashboardPage(
                   # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
                   #                       selected = "All", multiple = TRUE)),
                   column(9),
-                  column(3, selectInput("kpi1_rcmd", label = "KPI", choices = c("Hospital#", "City#", "FTE#"), 
+                  column(3, selectInput("kpi1_rcmd", label = "KPI", 
+                                        choices = c("Hospital#" = "hospital_num", "City#" = "city_num", "FTE#" = "fte"), 
                                         selected = "Hospital#", multiple = FALSE))
                 ),
                 style = "background:#C8E6FF;"
@@ -254,8 +257,9 @@ ui <- dashboardPage(
                   # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
                   #                       selected = "All", multiple = TRUE)),
                   column(9),
-                  column(3, selectInput("kpi2_rcmd", label = "KPI", choices = c("Avg. Productivity", "ROI"), 
-                                        selected = "Hospital#", multiple = FALSE))
+                  column(3, selectInput("kpi2_rcmd", label = "KPI", 
+                                        choices = c("Avg. Productivity" = "productivity", "ROI" = "roi"), 
+                                        selected = "Avg. Productivity", multiple = FALSE))
                 ),
                 style = "background:#C8E6FF;"
               )
