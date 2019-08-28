@@ -6,28 +6,28 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 ##---- load packages ----
-require(DT)
-require(reshape2)
-require(plyr)
-require(data.table)
-library(shiny)
-library(stringi)
-library(stringr)
-library(dplyr)
-library(plotly)
-library(tidyr)
-library(lubridate)
-library(purrr)
-library(readxl)
-library(RcppRoll)
-library(openxlsx)
-library(shinydashboard)
-library(rlang)
-library(shinyjs)
-library(webshot)
-library(leaflet)
-library(leafletCN)
-library(shinyWidgets)
+# require(DT)
+# require(reshape2)
+# require(plyr)
+# require(data.table)
+# library(shiny)
+# library(stringi)
+# library(stringr)
+# library(dplyr)
+# library(plotly)
+# library(tidyr)
+# library(lubridate)
+# library(purrr)
+# library(readxl)
+# library(RcppRoll)
+# library(openxlsx)
+# library(shinydashboard)
+# library(rlang)
+# library(shinyjs)
+# library(webshot)
+# library(leaflet)
+# library(leafletCN)
+# library(shinyWidgets)
 
 ##---- ui ----
 ui <- dashboardPage(
@@ -42,10 +42,13 @@ ui <- dashboardPage(
         column(12, 
                # tags$head(tags$style(".progress-bar{background-color:#00a65a;}")),
                fileInput("raw", label = "Upload Raw Data")),
-        column(12, numericInput("potn.ctrb", label = "Input Potential Cumulated con (%)", value = 90, min = 0, max = 100)),
+        column(12, numericInput("kPotnCtrb", label = "Input Potential Cumulated con (%)", value = 90, min = 0, max = 100)),
         column(12, selectInput("sku", label = "Selection SKU", choices = c("Gly", "Pentasa TAB", "Pentase SUP"), 
                                multiple = TRUE, selected = c("Gly", "Pentasa TAB", "Pentase SUP"))),
-        column(12, selectInput("aban", label = "Abandoned Provinces", choices = "", selected = "", multiple = TRUE))
+        column(12, selectInput("aban", label = "Abandoned Provinces", choices = "", selected = "", multiple = TRUE)),
+        column(12, br()),
+        tags$div(downloadButton(outputId = "DownloadSel", label = "Download", style = "width:150px; color:#000;"),
+                 style = "display:inline-block; width:100%; text-align:center;")
       )
     )
   ),
@@ -66,7 +69,7 @@ ui <- dashboardPage(
             solidHeader = TRUE,
             collapsible = FALSE,
             width = 6,
-            tags$div(plotlyOutput("conc", height = "500px"))
+            tags$div(plotlyOutput("Conc", height = "565px"))
           ),
           
           box(
@@ -78,15 +81,51 @@ ui <- dashboardPage(
             column(
               6, 
               fluidRow(
-                tags$div(dataTableOutput("C", height = "250px")),
-                tags$div(dataTableOutput("A", height = "250px"))
+                box(
+                  title = "C",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = FALSE,
+                  width = 12,
+                  style = "background:#C8E6FF; height:220px;",
+                  tags$div(DT::dataTableOutput("TableC"),
+                           style = "font-size:90%;")
+                ),
+                box(
+                  title = "D",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = FALSE,
+                  width = 12,
+                  style = "background:#C8E6FF; height:220px;",
+                  tags$div(DT::dataTableOutput("TableD"),
+                           style = "font-size:90%;")
+                )
               )
             ),
             column(
               6, 
               fluidRow(
-                tags$div(dataTableOutput("D", height = "250px")),
-                tags$div(dataTableOutput("B", height = "250px"))
+                box(
+                  title = "A",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = FALSE,
+                  width = 12,
+                  style = "background:#C8E6FF; height:220px;",
+                  tags$div(DT::dataTableOutput("TableA"),
+                           style = "font-size:90%;")
+                ),
+                box(
+                  title = "B",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = FALSE,
+                  width = 12,
+                  style = "background:#C8E6FF; height:220px;",
+                  tags$div(DT::dataTableOutput("TableB"),
+                           style = "font-size:90%;")
+                )
               )
             )
           ),
@@ -106,7 +145,7 @@ ui <- dashboardPage(
                 tags$div(
                   column(3, numericInput("productivity", label = "Productivity lowest limit by year", value = 0, min = 0)),
                   column(3, numericInput("roi", label = "ROI lowest limit by year (%)", value = 0, min = 0)),
-                  column(3, numericInput("growth", label = "Product sales growth rate lowest limit by year (%)", value = 0, min = 0)),
+                  column(3, numericInput("growth", label = "Growth rate lowest limit by year (%)", value = 0, min = 0)),
                   # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
                   #                       selected = "All", multiple = TRUE)),
                   column(3, selectInput("kpi1", label = "KPI", 
@@ -122,7 +161,7 @@ ui <- dashboardPage(
                 collapsible = FALSE,
                 width = 12, 
                 tags$div(
-                  plotlyOutput("hospital_plot", height = "250px")
+                  plotlyOutput("HospitalPlot", height = "250px")
                 )
               )
             ),
@@ -151,7 +190,7 @@ ui <- dashboardPage(
                 collapsible = FALSE,
                 width = 12, 
                 tags$div(
-                  plotlyOutput("index_plot", height = "250px")
+                  plotlyOutput("IndexPlot", height = "250px")
                 )
               )
             )
@@ -171,7 +210,11 @@ ui <- dashboardPage(
           tags$div(
             column(3, selectInput("scenario", label = "Scenario", choices = c("Max ROI", "Max Productivity", "All Standing"), 
                                   selected = "Max Return", multiple = FALSE)),
-            column(9)
+            column(7),
+            column(2,
+                   br(),
+                   tags$div(downloadButton(outputId = "DownloadRcmd", label = "Download", style = "width:100px; color:#000;"),
+                            style = "display:inline-block; width:100%; text-align:center;"))
           ),
           style = "background:#C8E6FF;"
         ),
@@ -184,7 +227,7 @@ ui <- dashboardPage(
             solidHeader = TRUE,
             collapsible = FALSE,
             width = 6,
-            tags$div(plotlyOutput("conc_rcmd", height = "500px"))
+            tags$div(plotlyOutput("ConcRcmd", height = "565px"))
           ),
           
           box(
@@ -196,15 +239,51 @@ ui <- dashboardPage(
             column(
               6, 
               fluidRow(
-                tags$div(dataTableOutput("C_rcmd", height = "250px")),
-                tags$div(dataTableOutput("A_rcmd", height = "250px"))
+                box(
+                  title = "C",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = FALSE,
+                  width = 12,
+                  style = "background:#C8E6FF; height:220px;",
+                  tags$div(DT::dataTableOutput("TableCRcmd"),
+                           style = "font-size:90%;")
+                ),
+                box(
+                  title = "D",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = FALSE,
+                  width = 12,
+                  style = "background:#C8E6FF; height:220px;",
+                  tags$div(DT::dataTableOutput("TableDRcmd"),
+                           style = "font-size:90%;")
+                )
               )
             ),
             column(
               6, 
               fluidRow(
-                tags$div(dataTableOutput("D_rcmd", height = "250px")),
-                tags$div(dataTableOutput("B_rcmd", height = "250px"))
+                box(
+                  title = "A",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = FALSE,
+                  width = 12,
+                  style = "background:#C8E6FF; height:220px;",
+                  tags$div(DT::dataTableOutput("TableARcmd"),
+                           style = "font-size:90%;")
+                ),
+                box(
+                  title = "B",
+                  status = "primary",
+                  solidHeader = TRUE,
+                  collapsible = FALSE,
+                  width = 12,
+                  style = "background:#C8E6FF; height:220px;",
+                  tags$div(DT::dataTableOutput("TableBRcmd"),
+                           style = "font-size:90%;")
+                )
               )
             )
           ),
@@ -228,7 +307,7 @@ ui <- dashboardPage(
                   # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
                   #                       selected = "All", multiple = TRUE)),
                   column(9),
-                  column(3, selectInput("kpi1_rcmd", label = "KPI", 
+                  column(3, selectInput("kpi1.rcmd", label = "KPI", 
                                         choices = c("Hospital#" = "hospital_num", "City#" = "city_num", "FTE#" = "fte"), 
                                         selected = "Hospital#", multiple = FALSE))
                 ),
@@ -241,7 +320,7 @@ ui <- dashboardPage(
                 collapsible = FALSE,
                 width = 12, 
                 tags$div(
-                  plotlyOutput("hospital_plot_rcmd", height = "250px")
+                  plotlyOutput("HospitalPlotRcmd", height = "250px")
                 )
               )
             ),
@@ -257,7 +336,7 @@ ui <- dashboardPage(
                   # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
                   #                       selected = "All", multiple = TRUE)),
                   column(9),
-                  column(3, selectInput("kpi2_rcmd", label = "KPI", 
+                  column(3, selectInput("kpi2.rcmd", label = "KPI", 
                                         choices = c("Avg. Productivity" = "productivity", "ROI" = "roi"), 
                                         selected = "Avg. Productivity", multiple = FALSE))
                 ),
@@ -270,7 +349,7 @@ ui <- dashboardPage(
                 collapsible = FALSE,
                 width = 12, 
                 tags$div(
-                  plotlyOutput("index_plot_rcmd", height = "250px")
+                  plotlyOutput("IndexPlotRcmd", height = "250px")
                 )
               )
             )
