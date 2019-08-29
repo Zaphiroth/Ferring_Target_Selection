@@ -208,7 +208,7 @@ ui <- dashboardPage(
           collapsible = FALSE,
           width = 12,
           tags$div(
-            column(3, selectInput("scenario", label = "Scenario", choices = c("Max ROI", "Max Productivity", "All Standing"), 
+            column(3, selectInput("scenario", label = "Scenario", choices = c("Max ROI", "All Standing"), 
                                   selected = "Max Return", multiple = FALSE)),
             column(7),
             column(2,

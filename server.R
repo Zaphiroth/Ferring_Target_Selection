@@ -54,15 +54,25 @@ server <- function(input, output, session) {
     raw
   })
   
+  ## abandoned province ----
+  observeEvent(raw(), {
+    updateSelectInput(session,
+                      inputId = "aban",
+                      label = "Abandoned Provinces",
+                      choices = sort(unique(raw()$province)),
+                      selected = NULL)
+  })
+  
   ## calculation data ----
   CalcData <- reactive({
-    if (is.null(raw()))
+    if (is.null(raw()) | is.null(input$sku))
       return(NULL)
     raw <- raw()
     
     cum <- raw %>% 
       distinct() %>% 
-      group_by(sku, hospital, province, city, flag) %>% 
+      filter(sku %in% input$sku) %>% 
+      group_by(hospital, province, city, flag) %>% 
       summarise(doctor_a = sum(doctor_a, na.rm = TRUE),
                 doctor_b = sum(doctor_b, na.rm = TRUE),
                 doctor_c = sum(doctor_c, na.rm = TRUE),
@@ -95,7 +105,7 @@ server <- function(input, output, session) {
   
   ## concentration curve ----
   ConcPlot <- reactive({
-    if (is.null(raw()))
+    if (is.null(CalcData()))
       return(NULL)
     
     if (is.na(input$kPotnCtrb)) {
@@ -189,7 +199,8 @@ server <- function(input, output, session) {
       prop <- input$kPotnCtrb
     }
     
-    seg.data <- bind_rows(CalcData()$data1, CalcData()$data2)
+    seg.data <- bind_rows(CalcData()$data1, CalcData()$data2) %>% 
+      filter(!(province %in% input$aban))
     
     kGrMean <- sum(seg.data$potential1, na.rm = TRUE) / sum(seg.data$potential0, na.rm = TRUE) - 1
     
@@ -273,10 +284,22 @@ server <- function(input, output, session) {
              "Productivity" = "productivity") %>% 
       melt(id.vars = NULL)
     
-    list("seg.a" = seg.a,
-         "seg.b" = seg.b,
-         "seg.c" = seg.c,
-         "seg.d" = seg.d)
+    seg.na <- data.frame("variable" = c("Number of Hospital", "Number of City", 
+                                        "FTE", "ROI", "Productivity"),
+                         "value" = c(0, 0, 0, 0, 0))
+    
+    seg.list <- list("seg.a" = seg.a,
+                     "seg.b" = seg.b,
+                     "seg.c" = seg.c,
+                     "seg.d" = seg.d)
+    
+    for (i in names(seg.list)) {
+      if (nrow(seg.list[[i]]) == 0) {
+        seg.list[[i]] <- seg.na
+      }
+    }
+    
+    seg.list
   })
   
   output$TableA <- renderDT({
@@ -415,20 +438,9 @@ server <- function(input, output, session) {
       )
   })
   
-  ## abandoned province ----
-  observeEvent(CalcData(), {
-    aban.data <- bind_rows(CalcData()$data1, CalcData()$data2)
-    
-    updateSelectInput(session,
-                      inputId = "aban",
-                      label = "Abandoned Provinces",
-                      choices = sort(unique(aban.data$province)),
-                      selected = NULL)
-  })
-  
   ## province data ----
   ProvData <- reactive({
-    if (is.null(CalcData()) | is.null(input$sku))
+    if (is.null(CalcData()) | is.null(input$kPotnCtrb))
       return(NULL)
     
     if (is.na(input$kPotnCtrb)) {
@@ -439,7 +451,6 @@ server <- function(input, output, session) {
     
     total.data <- CalcData()$data2 %>% 
       filter(potential0_cumctrb <= prop,
-             sku %in% input$sku,
              !(province %in% input$aban))
     
     # if (is.null(input$aban)) {
@@ -486,15 +497,6 @@ server <- function(input, output, session) {
                                            0,
                                            covered_productivity),
              covered_roi = (covered_target - covered_cost) / covered_cost)
-    
-    total.city.num <- total.data %>% 
-      bind_rows(CalcData()$data1) %>% 
-      select(province, city) %>% 
-      distinct() %>% 
-      filter(!is.na(city)) %>% 
-      group_by(province) %>% 
-      summarise(total_city_num = n()) %>% 
-      ungroup()
     
     total.prov.data <- total.data %>% 
       bind_rows(CalcData()$data1) %>% 
@@ -640,7 +642,7 @@ server <- function(input, output, session) {
   
   ## recommendation calculation data ----
   CalcDataRcmd <- reactive({
-    if (is.null(CalcData()))
+    if (is.null(CalcData()) | is.null(input$sku))
       return(NULL)
     
     total.data <- bind_rows(CalcData()$data1, CalcData()$data2) %>% 
@@ -654,11 +656,8 @@ server <- function(input, output, session) {
     if (input$scenario == "Max ROI") {
       mark <- rownames(total.data)[which(abs(total.data$roi_cumsum) == min(abs(total.data$roi_cumsum)))]
       
-    } else if (input$scenario == "Max Productivity") {
-      mark <- rownames(total.data)[which(total.data$productivity_cumsum == max(total.data$productivity_cumsum))]
-      
     } else {
-      mark <- "0"
+      mark <- rownames(total.data)[length(rownames(total.data))]
     }
     
     list("total.data" = total.data,
@@ -737,7 +736,8 @@ server <- function(input, output, session) {
     if (is.null(CalcDataRcmd()))
       return(NULL)
     
-    seg.data <- CalcDataRcmd()$total.data
+    seg.data <- CalcDataRcmd()$total.data %>% 
+      filter(!(province %in% input$aban))
     
     kGrMean <- sum(seg.data$potential1, na.rm = TRUE) / sum(seg.data$potential0, na.rm = TRUE) - 1
     
@@ -981,7 +981,8 @@ server <- function(input, output, session) {
       return(NULL)
     
     covered.data <- CalcDataRcmd()$total.data %>% 
-      filter(row_number() < as.numeric(CalcDataRcmd()$mark))
+      filter(row_number() <= as.numeric(CalcDataRcmd()$mark),
+             !(province %in% input$aban))
     
     covered.prov.data <- covered.data %>% 
       group_by(province) %>% 
