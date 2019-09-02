@@ -23,3 +23,12 @@ library(leaflet)
 library(leafletCN)
 library(shinyWidgets)
 library(readr)
+
+options(shiny.maxRequestSize = 1000 * 1024 ^ 2,
+        seg.color = "#FFFFF0",
+        seg.style = "background:#FFFFF0; height:220px;",
+        square.fill = "rgb(255, 255, 200)",
+        table.color = "#3C8DBC",
+        covered.color = "#17B0F7",
+        uncovered.color = "#64E6FF",
+        total.color = "#428BCA")

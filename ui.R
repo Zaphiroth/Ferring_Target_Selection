@@ -35,20 +35,22 @@ ui <- dashboardPage(
                   titleWidth = "250px"),
   
   dashboardSidebar(
-    width = "250px",
+    tags$head(includeCSS('./www/fix_siderbar.css')),
     collapsed = FALSE,
     fluidRow(
       tags$div(
-        column(12, 
-               # tags$head(tags$style(".progress-bar{background-color:#00a65a;}")),
-               fileInput("raw", label = "Upload Raw Data")),
-        column(12, numericInput("kPotnCtrb", label = "Input Potential Cumulated con (%)", value = 90, min = 0, max = 100)),
-        column(12, selectInput("sku", label = "Selection SKU", choices = c("Gly", "Pentasa TAB", "Pentase SUP"), 
-                               multiple = TRUE, selected = c("Gly", "Pentasa TAB", "Pentase SUP"))),
-        column(12, selectInput("aban", label = "Abandoned Provinces", choices = "", selected = "", multiple = TRUE)),
-        column(12, br()),
-        tags$div(downloadButton(outputId = "DownloadSel", label = "Download", style = "width:150px; color:#000;"),
-                 style = "display:inline-block; width:100%; text-align:center;")
+        column(
+          12,
+          # tags$head(tags$style(".progress-bar{background-color:#00a65a;}")),
+          fileInput("raw", label = "Upload Raw Data"),
+          numericInput("kPotnCtrb", label = "Input Potential Cumulated con (%)", value = 90, min = 0, max = 100),
+          selectInput("sku", label = "Selection SKU", choices = c("Gly", "Pentasa TAB", "Pentase SUP"), 
+                      multiple = TRUE, selected = c("Gly", "Pentasa TAB", "Pentase SUP")),
+          selectInput("aban", label = "Abandoned Provinces", choices = "", selected = "", multiple = TRUE),
+          br(),
+          tags$div(downloadButton(outputId = "DownloadSel", label = "Download", style = "width:150px; color:#000;"),
+                   style = "display:inline-block; width:100%; text-align:center;")
+        )
       )
     )
   ),
@@ -87,7 +89,7 @@ ui <- dashboardPage(
                   solidHeader = TRUE,
                   collapsible = FALSE,
                   width = 12,
-                  style = "background:#C8E6FF; height:220px;",
+                  style = options()$seg.style,
                   tags$div(DT::dataTableOutput("TableC"),
                            style = "font-size:90%;")
                 ),
@@ -97,7 +99,7 @@ ui <- dashboardPage(
                   solidHeader = TRUE,
                   collapsible = FALSE,
                   width = 12,
-                  style = "background:#C8E6FF; height:220px;",
+                  style = options()$seg.style,
                   tags$div(DT::dataTableOutput("TableD"),
                            style = "font-size:90%;")
                 )
@@ -112,7 +114,7 @@ ui <- dashboardPage(
                   solidHeader = TRUE,
                   collapsible = FALSE,
                   width = 12,
-                  style = "background:#C8E6FF; height:220px;",
+                  style = options()$seg.style,
                   tags$div(DT::dataTableOutput("TableA"),
                            style = "font-size:90%;")
                 ),
@@ -122,7 +124,7 @@ ui <- dashboardPage(
                   solidHeader = TRUE,
                   collapsible = FALSE,
                   width = 12,
-                  style = "background:#C8E6FF; height:220px;",
+                  style = options()$seg.style,
                   tags$div(DT::dataTableOutput("TableB"),
                            style = "font-size:90%;")
                 )
@@ -160,9 +162,9 @@ ui <- dashboardPage(
                 solidHeader = TRUE,
                 collapsible = FALSE,
                 width = 12, 
-                tags$div(
-                  plotlyOutput("HospitalPlot", height = "250px")
-                )
+                tags$div(plotlyOutput("HospitalPlot", height = "300px")),
+                tags$div(DT::dataTableOutput("HospitalTable"),
+                         style = "font-size:90%; overflow-x:scroll;")
               )
             ),
             fluidRow(
@@ -189,8 +191,14 @@ ui <- dashboardPage(
                 solidHeader = TRUE,
                 collapsible = FALSE,
                 width = 12, 
-                tags$div(
-                  plotlyOutput("IndexPlot", height = "250px")
+                column(
+                  12,
+                  tags$div(plotlyOutput("IndexPlot", height = "250px"))
+                ),
+                column(
+                  12,
+                  tags$div(DT::dataTableOutput("IndexTable"),
+                           style = "font-size:90%; overflow-x:scroll;")
                 )
               )
             )
@@ -245,7 +253,7 @@ ui <- dashboardPage(
                   solidHeader = TRUE,
                   collapsible = FALSE,
                   width = 12,
-                  style = "background:#C8E6FF; height:220px;",
+                  style = options()$seg.style,
                   tags$div(DT::dataTableOutput("TableCRcmd"),
                            style = "font-size:90%;")
                 ),
@@ -255,7 +263,7 @@ ui <- dashboardPage(
                   solidHeader = TRUE,
                   collapsible = FALSE,
                   width = 12,
-                  style = "background:#C8E6FF; height:220px;",
+                  style = options()$seg.style,
                   tags$div(DT::dataTableOutput("TableDRcmd"),
                            style = "font-size:90%;")
                 )
@@ -270,7 +278,7 @@ ui <- dashboardPage(
                   solidHeader = TRUE,
                   collapsible = FALSE,
                   width = 12,
-                  style = "background:#C8E6FF; height:220px;",
+                  style = options()$seg.style,
                   tags$div(DT::dataTableOutput("TableARcmd"),
                            style = "font-size:90%;")
                 ),
@@ -280,7 +288,7 @@ ui <- dashboardPage(
                   solidHeader = TRUE,
                   collapsible = FALSE,
                   width = 12,
-                  style = "background:#C8E6FF; height:220px;",
+                  style = options()$seg.style,
                   tags$div(DT::dataTableOutput("TableBRcmd"),
                            style = "font-size:90%;")
                 )
@@ -319,8 +327,14 @@ ui <- dashboardPage(
                 solidHeader = TRUE,
                 collapsible = FALSE,
                 width = 12, 
-                tags$div(
-                  plotlyOutput("HospitalPlotRcmd", height = "250px")
+                column(
+                  12,
+                  tags$div(plotlyOutput("HospitalPlotRcmd", height = "250px"))
+                ),
+                column(
+                  12,
+                  tags$div(DT::dataTableOutput("HospitalTableRcmd"),
+                           style = "font-size:90%; overflow-x:scroll;")
                 )
               )
             ),
@@ -348,8 +362,14 @@ ui <- dashboardPage(
                 solidHeader = TRUE,
                 collapsible = FALSE,
                 width = 12, 
-                tags$div(
-                  plotlyOutput("IndexPlotRcmd", height = "250px")
+                column(
+                  12,
+                  tags$div(plotlyOutput("IndexPlotRcmd", height = "250px"))
+                ),
+                column(
+                  12,
+                  tags$div(DT::dataTableOutput("IndexTableRcmd"),
+                           style = "font-size:90%; overflow-x:scroll;")
                 )
               )
             )

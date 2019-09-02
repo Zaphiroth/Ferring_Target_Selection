@@ -29,8 +29,6 @@
 # library(leafletCN)
 # library(shinyWidgets)
 
-options(shiny.maxRequestSize = 1000 * 1024 ^ 2)
-
 ##---- load functions ----
 # source("./functions/concentration.R", encoding = "UTF-8")
 
@@ -123,7 +121,8 @@ server <- function(input, output, session) {
       add_trace(x = as.numeric(rownames(plot.data)),
                 y = plot.data$potential0_cumctrb,
                 type = "scatter",
-                mode = "lines") %>% 
+                mode = "lines",
+                color = I(options()$total.color)) %>% 
       add_markers(x = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
                   y = prop,
                   color = "red")
@@ -168,7 +167,7 @@ server <- function(input, output, session) {
           shapes = list(
             list(
               type = "rect",
-              fillcolor = "grey",
+              fillcolor = options()$square.fill,
               opacity = 0.3,
               x0 = 0,
               x1 = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
@@ -332,7 +331,7 @@ server <- function(input, output, session) {
       ) %>% 
       formatStyle(
         c("variable", "value"),
-        backgroundColor = "#C8E6FF"
+        backgroundColor = options()$seg.color
       )
   })
   
@@ -366,7 +365,7 @@ server <- function(input, output, session) {
       ) %>% 
       formatStyle(
         c("variable", "value"),
-        backgroundColor = "#C8E6FF"
+        backgroundColor = options()$seg.color
       )
   })
   
@@ -400,7 +399,7 @@ server <- function(input, output, session) {
       ) %>% 
       formatStyle(
         c("variable", "value"),
-        backgroundColor = "#C8E6FF"
+        backgroundColor = options()$seg.color
       )
   })
   
@@ -434,7 +433,7 @@ server <- function(input, output, session) {
       ) %>% 
       formatStyle(
         c("variable", "value"),
-        backgroundColor = "#C8E6FF"
+        backgroundColor = options()$seg.color
       )
   })
   
@@ -550,7 +549,10 @@ server <- function(input, output, session) {
       return(NULL)
     
     plot.data <- ProvData()
-    plot.data <- plot.data[c("province", paste0("covered_", input$kpi1), paste0("uncovered_", input$kpi1), paste0("total_", input$kpi1))]
+    plot.data <- plot.data[c("province",
+                             paste0("covered_", input$kpi1),
+                             paste0("uncovered_", input$kpi1),
+                             paste0("total_", input$kpi1))]
     colnames(plot.data) <- c("x", "y1", "y2", "y")
     plot.data <- arrange(plot.data, -y)
     
@@ -561,12 +563,12 @@ server <- function(input, output, session) {
                y = plot.data$y1,
                type = "bar",
                name = "Covered",
-               color = I("#4682B4")) %>% 
+               color = I(options()$covered.color)) %>% 
       add_bars(x = plot.data$x,
                y = plot.data$y2,
                type = "bar",
                name = "Uncovered",
-               color = I("#FF8C00")) %>% 
+               color = I(options()$uncovered.color)) %>% 
       layout(
         barmode = "stack",
         showlegend = TRUE,
@@ -590,6 +592,84 @@ server <- function(input, output, session) {
     ProvPlot1()
   })
   
+  ## table1 ----
+  ProvTable1 <- reactive({
+    if (is.null(ProvData()) | is.null(input$kpi1))
+      return(NULL)
+    if (nrow(ProvData()) == 0)
+      return(NULL)
+    
+    plot.data <- ProvData()
+    plot.data <- plot.data[c("province",
+                             paste0("covered_", input$kpi1),
+                             paste0("uncovered_", input$kpi1),
+                             paste0("total_", input$kpi1))]
+    colnames(plot.data) <- c("index", "Covered", "Uncovered", "Total")
+    
+    ordering <- arrange(plot.data, -`Total`)$index
+    plot.data <- melt(plot.data, id.vars = "index", variable.name = "省份") %>% 
+      dcast(`省份`~index, value.var = "value") %>% 
+      select("省份", ordering)
+    
+    plot.data
+  })
+  
+  output$HospitalTable <- renderDT({
+    if (is.null(ProvTable1()))
+      return(NULL)
+    
+    DT::datatable(
+      ProvTable1(),
+      rownames = FALSE,
+      # extensions = c('FixedColumns', 'Buttons'),
+      #filter = 'bottom',
+      ##### this sentence need to be changed when new variables added
+      options = list(
+        # dom = '<"bottom">Bfrtpl',
+        # buttons = I('colvis'),
+        columnDefs = list(
+          list(
+            className = 'dt-center',
+            targets = '_all'
+          ),
+          list(
+            className = 'nowrap',
+            targets = '_all'
+          )
+        ),
+        initComplete = JS(
+          "function(settings, json) {",
+          "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
+          "}"
+        ),
+        paging = FALSE,
+        scrollX = FALSE,
+        searching = FALSE,
+        ordering = FALSE,
+        pageLength = 5,
+        lengthChange = FALSE,
+        bInfo = FALSE
+      )
+    ) %>% 
+      formatStyle(
+        "省份",
+        target = "row",
+        # color = styleEqual("Total", options()$table.color),
+        fontWeight = styleEqual("Total", "bold")
+      ) %>% 
+      formatStyle(
+        "省份",
+        color = options()$table.color,
+        fontWeight = "bold"
+      ) %>% 
+      formatRound(
+        columns = TRUE,
+        digits = 0,
+        interval = 3
+      )
+  })
+  
+  
   ## plot2 ----
   ProvPlot2 <- reactive({
     if (is.null(ProvData()) | is.null(input$kpi2))
@@ -598,7 +678,10 @@ server <- function(input, output, session) {
       return(NULL)
     
     plot.data <- ProvData()
-    plot.data <- plot.data[c("province", paste0("covered_", input$kpi2), paste0("uncovered_", input$kpi2), paste0("total_", input$kpi2))]
+    plot.data <- plot.data[c("province",
+                             paste0("covered_", input$kpi2),
+                             paste0("uncovered_", input$kpi2),
+                             paste0("total_", input$kpi2))]
     colnames(plot.data) <- c("x", "y1", "y2", "y")
     plot.data <- arrange(plot.data, -y)
     
@@ -610,13 +693,13 @@ server <- function(input, output, session) {
                 type = "scatter",
                 mode = "lines",
                 name = "Total hospital",
-                color = I("#00BFFF")) %>% 
+                color = I(options()$total.color)) %>% 
       add_trace(x = plot.data$x,
                 y = plot.data$y1,
                 type = "scatter",
                 mode = "lines",
                 name = "Covered",
-                color = I("#4682B4")) %>% 
+                color = I(options()$covered.color)) %>% 
       layout(
         showlegend = TRUE,
         xaxis = list(
@@ -638,6 +721,83 @@ server <- function(input, output, session) {
   
   output$IndexPlot <- renderPlotly({
     ProvPlot2()
+  })
+  
+  ## table2 ----
+  ProvTable2 <- reactive({
+    if (is.null(ProvData()) | is.null(input$kpi2))
+      return(NULL)
+    if (nrow(ProvData()) == 0)
+      return(NULL)
+    
+    plot.data <- ProvData()
+    plot.data <- plot.data[c("province",
+                             paste0("covered_", input$kpi2),
+                             paste0("uncovered_", input$kpi2),
+                             paste0("total_", input$kpi2))]
+    colnames(plot.data) <- c("index", "Covered", "Uncovered", "Total")
+    
+    ordering <- arrange(plot.data, -`Total`)$index
+    plot.data <- melt(plot.data, id.vars = "index", variable.name = "省份") %>% 
+      dcast(`省份`~index, value.var = "value") %>% 
+      select("省份", ordering)
+    
+    plot.data
+  })
+  
+  output$IndexTable <- renderDT({
+    if (is.null(ProvTable2()))
+      return(NULL)
+    
+    DT::datatable(
+      ProvTable2(),
+      rownames = FALSE,
+      # extensions = c('FixedColumns', 'Buttons'),
+      #filter = 'bottom',
+      ##### this sentence need to be changed when new variables added
+      options = list(
+        # dom = '<"bottom">Bfrtpl',
+        # buttons = I('colvis'),
+        columnDefs = list(
+          list(
+            className = 'dt-center',
+            targets = '_all'
+          ),
+          list(
+            className = 'nowrap',
+            targets = '_all'
+          )
+        ),
+        initComplete = JS(
+          "function(settings, json) {",
+          "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
+          "}"
+        ),
+        paging = FALSE,
+        scrollX = FALSE,
+        searching = FALSE,
+        ordering = FALSE,
+        pageLength = 5,
+        lengthChange = FALSE,
+        bInfo = FALSE
+      )
+    ) %>% 
+      formatStyle(
+        "省份",
+        target = "row",
+        # color = styleEqual("Total", options()$table.color),
+        fontWeight = styleEqual("Total", "bold")
+      ) %>% 
+      formatStyle(
+        "省份",
+        color = options()$table.color,
+        fontWeight = "bold"
+      ) %>% 
+      formatRound(
+        columns = TRUE,
+        digits = 2,
+        interval = 3
+      )
   })
   
   ## recommendation calculation data ----
@@ -678,7 +838,8 @@ server <- function(input, output, session) {
       add_trace(x = as.numeric(rownames(plot.data)),
                 y = plot.data$potential0_cumctrb,
                 type = "scatter",
-                mode = "lines") %>% 
+                mode = "lines",
+                color = I(options()$total.color)) %>% 
       add_markers(x = x.mark,
                   y = y.mark,
                   color = "red") %>% 
@@ -686,12 +847,12 @@ server <- function(input, output, session) {
                    xend = x.mark,
                    y = 0,
                    yend = y.mark,
-                   color = "red") %>% 
+                   color = "red") %>%
       add_segments(x = 0,
                    xend = x.mark,
                    y = y.mark,
                    yend = y.mark,
-                   color = "red") %>% 
+                   color = "red") %>%
       layout(
         showlegend = FALSE,
         xaxis = list(
@@ -712,7 +873,7 @@ server <- function(input, output, session) {
         shapes = list(
           list(
             type = "rect",
-            fillcolor = "grey",
+            fillcolor = options()$square.fill,
             opacity = 0.3,
             x0 = 0,
             x1 = x.mark,
@@ -869,7 +1030,7 @@ server <- function(input, output, session) {
       ) %>% 
       formatStyle(
         c("variable", "value"),
-        backgroundColor = "#C8E6FF"
+        backgroundColor = options()$seg.color
       )
   })
   
@@ -903,7 +1064,7 @@ server <- function(input, output, session) {
       ) %>% 
       formatStyle(
         c("variable", "value"),
-        backgroundColor = "#C8E6FF"
+        backgroundColor = options()$seg.color
       )
   })
   
@@ -937,7 +1098,7 @@ server <- function(input, output, session) {
       ) %>% 
       formatStyle(
         c("variable", "value"),
-        backgroundColor = "#C8E6FF"
+        backgroundColor = options()$seg.color
       )
   })
   
@@ -971,7 +1132,7 @@ server <- function(input, output, session) {
       ) %>% 
       formatStyle(
         c("variable", "value"),
-        backgroundColor = "#C8E6FF"
+        backgroundColor = options()$seg.color
       )
   })
   
@@ -1026,7 +1187,7 @@ server <- function(input, output, session) {
                y = plot.data$y,
                type = "bar",
                name = "Covered",
-               color = I("#4682B4")) %>% 
+               color = I(options()$covered.color)) %>% 
       layout(
         showlegend = TRUE,
         xaxis = list(
@@ -1049,6 +1210,81 @@ server <- function(input, output, session) {
     ProvPlot1Rcmd()
   })
   
+  ## recommendation table1 ----
+  ProvTable1Rcmd <- reactive({
+    if (is.null(ProvDataRcmd()) | is.null(input$kpi1.rcmd))
+      return(NULL)
+    if (nrow(ProvDataRcmd()) == 0)
+      return(NULL)
+    
+    plot.data <- ProvDataRcmd()
+    plot.data <- plot.data[c("province", paste0("covered_", input$kpi1.rcmd))]
+    colnames(plot.data) <- c("index", "Covered")
+    
+    ordering <- arrange(plot.data, -`Covered`)$index
+    plot.data <- melt(plot.data, id.vars = "index", variable.name = "省份") %>% 
+      dcast(`省份`~index, value.var = "value") %>% 
+      select("省份", ordering)
+    
+    plot.data
+  })
+  
+  output$HospitalTableRcmd <- renderDT({
+    if (is.null(ProvTable1Rcmd()))
+      return(NULL)
+    
+    DT::datatable(
+      ProvTable1Rcmd(),
+      rownames = FALSE,
+      # extensions = c('FixedColumns', 'Buttons'),
+      #filter = 'bottom',
+      ##### this sentence need to be changed when new variables added
+      options = list(
+        # dom = '<"bottom">Bfrtpl',
+        # buttons = I('colvis'),
+        columnDefs = list(
+          list(
+            className = 'dt-center',
+            targets = '_all'
+          ),
+          list(
+            className = 'nowrap',
+            targets = '_all'
+          )
+        ),
+        initComplete = JS(
+          "function(settings, json) {",
+          "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
+          "}"
+        ),
+        paging = FALSE,
+        scrollX = FALSE,
+        searching = FALSE,
+        ordering = FALSE,
+        pageLength = 5,
+        lengthChange = FALSE,
+        bInfo = FALSE
+      )
+    ) %>% 
+      formatStyle(
+        "省份",
+        color = options()$table.color,
+        fontWeight = "bold"
+      ) %>% 
+      # formatStyle(
+      #   "省份",
+      #   target = "row",
+      #   color = styleEqual("Total", options()$table.color),
+      #   fontWeight = styleEqual("Total", "bold")
+      # ) %>% 
+      formatRound(
+        columns = TRUE,
+        digits = 0,
+        interval = 3
+      )
+  })
+  
+  ## recommendation plot2 ----
   ProvPlot2Rcmd <- reactive({
     if (is.null(ProvDataRcmd()) | is.null(input$kpi2.rcmd))
       return(NULL)
@@ -1068,7 +1304,7 @@ server <- function(input, output, session) {
                 type = "scatter",
                 mode = "lines",
                 name = "Covered",
-                color = I("#4682B4")) %>% 
+                color = I(options()$covered.color)) %>% 
       layout(
         showlegend = TRUE,
         xaxis = list(
@@ -1092,6 +1328,80 @@ server <- function(input, output, session) {
     ProvPlot2Rcmd()
   })
   
+  ## recommendation table2 ----
+  ProvTable2Rcmd <- reactive({
+    if (is.null(ProvDataRcmd()) | is.null(input$kpi2.rcmd))
+      return(NULL)
+    if (nrow(ProvDataRcmd()) == 0)
+      return(NULL)
+    
+    plot.data <- ProvDataRcmd()
+    plot.data <- plot.data[c("province", paste0("covered_", input$kpi2.rcmd))]
+    colnames(plot.data) <- c("index", "Covered")
+    
+    ordering <- arrange(plot.data, -`Covered`)$index
+    plot.data <- melt(plot.data, id.vars = "index", variable.name = "省份") %>% 
+      dcast(`省份`~index, value.var = "value") %>% 
+      select("省份", ordering)
+    
+    plot.data
+  })
+  
+  output$IndexTableRcmd <- renderDT({
+    if (is.null(ProvTable2Rcmd()))
+      return(NULL)
+    
+    DT::datatable(
+      ProvTable2Rcmd(),
+      rownames = FALSE,
+      # extensions = c('FixedColumns', 'Buttons'),
+      #filter = 'bottom',
+      ##### this sentence need to be changed when new variables added
+      options = list(
+        # dom = '<"bottom">Bfrtpl',
+        # buttons = I('colvis'),
+        columnDefs = list(
+          list(
+            className = 'dt-center',
+            targets = '_all'
+          ),
+          list(
+            className = 'nowrap',
+            targets = '_all'
+          )
+        ),
+        initComplete = JS(
+          "function(settings, json) {",
+          "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
+          "}"
+        ),
+        paging = FALSE,
+        scrollX = FALSE,
+        searching = FALSE,
+        ordering = FALSE,
+        pageLength = 5,
+        lengthChange = FALSE,
+        bInfo = FALSE
+      )
+    ) %>% 
+      formatStyle(
+        "省份",
+        color = options()$table.color,
+        fontWeight = "bold"
+      ) %>% 
+      # formatStyle(
+      #   "省份",
+      #   target = "row",
+      #   color = styleEqual("Total", options()$table.color),
+      #   fontWeight = styleEqual("Total", "bold")
+      # ) %>% 
+      formatRound(
+        columns = TRUE,
+        digits = 2,
+        interval = 3
+      )
+  })
+  
   ## download ----
   output$DownloadSel <- downloadHandler(
     filename = function() {
@@ -1107,7 +1417,6 @@ server <- function(input, output, session) {
       
       total.data <- CalcData()$data2 %>% 
         filter(potential0_cumctrb <= prop,
-               sku %in% input$sku,
                !(province %in% input$aban)) %>% 
         bind_rows(CalcData()$data1)
       
