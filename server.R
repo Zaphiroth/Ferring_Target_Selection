@@ -171,7 +171,7 @@ server <- function(input, output, session) {
               type = "rect",
               fillcolor = options()$square.color,
               line = list(color = options()$square.color),
-              opacity = 0.3,
+              opacity = 0.2,
               x0 = 0,
               x1 = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
               xref = "x",
@@ -216,9 +216,13 @@ server <- function(input, output, session) {
                 cost = sum(cost, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
-      mutate(fte = round(fte, 1),
-             roi = paste0(round((target - cost) / cost * 100, 1), "%"),
-             productivity = round(target / fte, 1)) %>% 
+      mutate(roi = (target - cost) / cost * 100,
+             productivity = target / fte) %>% 
+      mutate(hospital_num = format(hospital_num, big.mark = ","),
+             city_num = format(city_num, big.mark = ","),
+             fte = format(fte, big.mark = ",", nsmall = 1L),
+             roi = paste0(format(roi, nsmall = 1L), "%"),
+             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -236,9 +240,13 @@ server <- function(input, output, session) {
                 cost = sum(cost, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
-      mutate(fte = round(fte, 1),
-             roi = paste0(round((target - cost) / cost * 100, 1), "%"),
-             productivity = round(target / fte, 1)) %>% 
+      mutate(roi = (target - cost) / cost * 100,
+             productivity = target / fte) %>% 
+      mutate(hospital_num = format(hospital_num, big.mark = ","),
+             city_num = format(city_num, big.mark = ","),
+             fte = format(fte, big.mark = ",", nsmall = 1L),
+             roi = paste0(format(roi, nsmall = 1L), "%"),
+             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -256,9 +264,13 @@ server <- function(input, output, session) {
                 cost = sum(cost, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
-      mutate(fte = round(fte, 1),
-             roi = paste0(round((target - cost) / cost * 100, 1), "%"),
-             productivity = round(target / fte, 1)) %>% 
+      mutate(roi = (target - cost) / cost * 100,
+             productivity = target / fte) %>% 
+      mutate(hospital_num = format(hospital_num, big.mark = ","),
+             city_num = format(city_num, big.mark = ","),
+             fte = format(fte, big.mark = ",", nsmall = 1L),
+             roi = paste0(format(roi, nsmall = 1L), "%"),
+             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -276,11 +288,13 @@ server <- function(input, output, session) {
                 cost = sum(cost, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
+      mutate(roi = (target - cost) / cost * 100,
+             productivity = target / fte) %>% 
       mutate(hospital_num = format(hospital_num, big.mark = ","),
              city_num = format(city_num, big.mark = ","),
              fte = format(fte, big.mark = ",", nsmall = 1L),
-             roi = paste0(format((target - cost) / cost * 100, nsmall = 1L), "%"),
-             productivity = format(target / fte, big.mark = ",", nsmall = 1L)) %>% 
+             roi = paste0(format(roi, nsmall = 1L), "%"),
+             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -306,7 +320,7 @@ server <- function(input, output, session) {
     seg.list
   })
   
-  output$TableA <- renderDT({
+  output$TableA <- DT::renderDataTable({
     if (is.null(SegData()))
       return(NULL)
     
@@ -340,7 +354,7 @@ server <- function(input, output, session) {
       )
   })
   
-  output$TableB <- renderDT({
+  output$TableB <- DT::renderDataTable({
     if (is.null(SegData()))
       return(NULL)
     
@@ -374,7 +388,7 @@ server <- function(input, output, session) {
       )
   })
   
-  output$TableC <- renderDT({
+  output$TableC <- DT::renderDataTable({
     if (is.null(SegData()))
       return(NULL)
     
@@ -408,7 +422,7 @@ server <- function(input, output, session) {
       )
   })
   
-  output$TableD <- renderDT({
+  output$TableD <- DT::renderDataTable({
     if (is.null(SegData()))
       return(NULL)
     
@@ -633,7 +647,7 @@ server <- function(input, output, session) {
     plot.data
   })
   
-  output$HospitalTable <- renderDT({
+  output$HospitalTable <- DT::renderDataTable({
     if (is.null(ProvTable1()))
       return(NULL)
     
@@ -655,10 +669,6 @@ server <- function(input, output, session) {
         columnDefs = list(
           list(
             className = 'dt-center',
-            targets = '_all'
-          ),
-          list(
-            className = 'nowrap',
             targets = '_all'
           )
         ),
@@ -689,8 +699,9 @@ server <- function(input, output, session) {
       ) %>% 
       formatRound(
         columns = TRUE,
-        digits = dgt,
-        interval = 3
+        digits = dgt
+        # interval = 3,
+        # mark = ","
       )
   })
   
@@ -773,7 +784,7 @@ server <- function(input, output, session) {
     plot.data
   })
   
-  output$IndexTable <- renderDT({
+  output$IndexTable <- DT::renderDataTable({
     if (is.null(ProvTable2()))
       return(NULL)
     
@@ -789,10 +800,6 @@ server <- function(input, output, session) {
         columnDefs = list(
           list(
             className = 'dt-center',
-            targets = '_all'
-          ),
-          list(
-            className = 'nowrap',
             targets = '_all'
           )
         ),
@@ -823,8 +830,9 @@ server <- function(input, output, session) {
       ) %>% 
       formatRound(
         columns = TRUE,
-        digits = 2,
-        interval = 3
+        digits = 2
+        # interval = 3,
+        # mark = ","
       )
   })
   
@@ -905,7 +913,7 @@ server <- function(input, output, session) {
             type = "rect",
             fillcolor = options()$square.color,
             line = list(color = options()$square.color),
-            opacity = 0.3,
+            opacity = 0.2,
             x0 = 0,
             x1 = x.mark,
             xref = "x",
@@ -943,9 +951,13 @@ server <- function(input, output, session) {
                 cost = sum(cost, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
-      mutate(fte = round(fte, 1),
-             roi = paste0(round((target - cost) / cost * 100, 1), "%"),
-             productivity = round(target / fte, 1)) %>% 
+      mutate(roi = (target - cost) / cost * 100,
+             productivity = target / fte) %>% 
+      mutate(hospital_num = format(hospital_num, big.mark = ","),
+             city_num = format(city_num, big.mark = ","),
+             fte = format(fte, big.mark = ",", nsmall = 1L),
+             roi = paste0(format(roi, nsmall = 1L), "%"),
+             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -963,9 +975,13 @@ server <- function(input, output, session) {
                 cost = sum(cost, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
-      mutate(fte = round(fte, 1),
-             roi = paste0(round((target - cost) / cost * 100, 1), "%"),
-             productivity = round(target / fte, 1)) %>% 
+      mutate(roi = (target - cost) / cost * 100,
+             productivity = target / fte) %>% 
+      mutate(hospital_num = format(hospital_num, big.mark = ","),
+             city_num = format(city_num, big.mark = ","),
+             fte = format(fte, big.mark = ",", nsmall = 1L),
+             roi = paste0(format(roi, nsmall = 1L), "%"),
+             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -983,9 +999,13 @@ server <- function(input, output, session) {
                 cost = sum(cost, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
-      mutate(fte = round(fte, 1),
-             roi = paste0(round((target - cost) / cost * 100, 1), "%"),
-             productivity = round(target / fte, 1)) %>% 
+      mutate(roi = (target - cost) / cost * 100,
+             productivity = target / fte) %>% 
+      mutate(hospital_num = format(hospital_num, big.mark = ","),
+             city_num = format(city_num, big.mark = ","),
+             fte = format(fte, big.mark = ",", nsmall = 1L),
+             roi = paste0(format(roi, nsmall = 1L), "%"),
+             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -1003,11 +1023,13 @@ server <- function(input, output, session) {
                 cost = sum(cost, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
+      mutate(roi = (target - cost) / cost * 100,
+             productivity = target / fte) %>% 
       mutate(hospital_num = format(hospital_num, big.mark = ","),
              city_num = format(city_num, big.mark = ","),
              fte = format(fte, big.mark = ",", nsmall = 1L),
-             roi = paste0(format((target - cost) / cost * 100, nsmall = 1L), "%"),
-             productivity = format(target / fte, big.mark = ",", nsmall = 1L)) %>% 
+             roi = paste0(format(roi, nsmall = 1L), "%"),
+             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -1033,7 +1055,7 @@ server <- function(input, output, session) {
     seg.list
   })
   
-  output$TableARcmd <- renderDT({
+  output$TableARcmd <- DT::renderDataTable({
     if (is.null(SegDataRcmd()))
       return(NULL)
     
@@ -1067,7 +1089,7 @@ server <- function(input, output, session) {
       )
   })
   
-  output$TableBRcmd <- renderDT({
+  output$TableBRcmd <- DT::renderDataTable({
     if (is.null(SegDataRcmd()))
       return(NULL)
     
@@ -1101,7 +1123,7 @@ server <- function(input, output, session) {
       )
   })
   
-  output$TableCRcmd <- renderDT({
+  output$TableCRcmd <- DT::renderDataTable({
     if (is.null(SegDataRcmd()))
       return(NULL)
     
@@ -1135,7 +1157,7 @@ server <- function(input, output, session) {
       )
   })
   
-  output$TableDRcmd <- renderDT({
+  output$TableDRcmd <- DT::renderDataTable({
     if (is.null(SegDataRcmd()))
       return(NULL)
     
@@ -1267,7 +1289,7 @@ server <- function(input, output, session) {
     plot.data
   })
   
-  output$HospitalTableRcmd <- renderDT({
+  output$HospitalTableRcmd <- DT::renderDataTable({
     if (is.null(ProvTable1Rcmd()))
       return(NULL)
     
@@ -1289,10 +1311,6 @@ server <- function(input, output, session) {
         columnDefs = list(
           list(
             className = 'dt-center',
-            targets = '_all'
-          ),
-          list(
-            className = 'nowrap',
             targets = '_all'
           )
         ),
@@ -1323,8 +1341,9 @@ server <- function(input, output, session) {
       # ) %>% 
       formatRound(
         columns = TRUE,
-        digits = dgt,
-        interval = 3
+        digits = dgt
+        # interval = 3,
+        # mark = ","
       )
   })
   
@@ -1394,7 +1413,7 @@ server <- function(input, output, session) {
     plot.data
   })
   
-  output$IndexTableRcmd <- renderDT({
+  output$IndexTableRcmd <- DT::renderDataTable({
     if (is.null(ProvTable2Rcmd()))
       return(NULL)
     
@@ -1410,10 +1429,6 @@ server <- function(input, output, session) {
         columnDefs = list(
           list(
             className = 'dt-center',
-            targets = '_all'
-          ),
-          list(
-            className = 'nowrap',
             targets = '_all'
           )
         ),
@@ -1444,8 +1459,9 @@ server <- function(input, output, session) {
       # ) %>% 
       formatRound(
         columns = TRUE,
-        digits = 2,
-        interval = 3
+        digits = 2
+        # interval = 3,
+        # mark = ","
       )
   })
   

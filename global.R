@@ -32,4 +32,4 @@ options(shiny.maxRequestSize = 1000 * 1024 ^ 2,
         table.color = "#3C8DBC",
         covered.color = "#17B0F7",
         uncovered.color = "#64E6FF",
-        total.color = "#428BCA")
+        total.color = "#483D8B")

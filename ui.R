@@ -157,6 +157,7 @@ ui <- dashboardPage(
                 style = "background:#C8E6FF;"
               )
             ),
+            br(),
             fluidRow(
               box(
                 solidHeader = TRUE,
@@ -164,7 +165,8 @@ ui <- dashboardPage(
                 width = 12, 
                 tags$div(plotlyOutput("HospitalPlot", height = "300px")),
                 tags$div(DT::dataTableOutput("HospitalTable"),
-                         style = "font-size:90%; overflow-x:scroll;")
+                         style = "font-size:90%; overflow-x:scroll;",
+                         class = "nowrap")
               )
             ),
             fluidRow(
@@ -186,6 +188,7 @@ ui <- dashboardPage(
                 style = "background:#C8E6FF;"
               )
             ),
+            br(),
             fluidRow(
               box(
                 solidHeader = TRUE,
@@ -198,7 +201,8 @@ ui <- dashboardPage(
                 column(
                   12,
                   tags$div(DT::dataTableOutput("IndexTable"),
-                           style = "font-size:90%; overflow-x:scroll;")
+                           style = "font-size:90%; overflow-x:scroll;",
+                           class = "nowrap")
                 )
               )
             )
@@ -322,6 +326,7 @@ ui <- dashboardPage(
                 style = "background:#C8E6FF;"
               )
             ),
+            br(),
             fluidRow(
               box(
                 solidHeader = TRUE,
@@ -334,7 +339,8 @@ ui <- dashboardPage(
                 column(
                   12,
                   tags$div(DT::dataTableOutput("HospitalTableRcmd"),
-                           style = "font-size:90%; overflow-x:scroll;")
+                           style = "font-size:90%; overflow-x:scroll;",
+                           class = "nowrap")
                 )
               )
             ),
@@ -357,6 +363,7 @@ ui <- dashboardPage(
                 style = "background:#C8E6FF;"
               )
             ),
+            br(),
             fluidRow(
               box(
                 solidHeader = TRUE,
@@ -369,7 +376,8 @@ ui <- dashboardPage(
                 column(
                   12,
                   tags$div(DT::dataTableOutput("IndexTableRcmd"),
-                           style = "font-size:90%; overflow-x:scroll;")
+                           style = "font-size:90%; overflow-x:scroll;",
+                           class = "nowrap")
                 )
               )
             )
