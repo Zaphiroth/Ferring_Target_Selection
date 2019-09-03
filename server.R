@@ -125,38 +125,40 @@ server <- function(input, output, session) {
                 color = I(options()$total.color)) %>% 
       add_markers(x = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
                   y = prop,
-                  color = "red")
+                  color = I(options()$marker.color))
     
-    if (prop != 0) {
-      plot1 <- plot1 %>% 
-        add_segments(x = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
-                     xend = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
-                     y = 0,
-                     yend = prop,
-                     color = "red") %>%
-        add_segments(x = 0,
-                     xend = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
-                     y = prop,
-                     yend = prop,
-                     color = "red")
-    }
+    # if (prop != 0) {
+    #   plot1 <- plot1 %>% 
+    #     add_segments(x = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
+    #                  xend = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
+    #                  y = 0,
+    #                  yend = prop,
+    #                  color = "red") %>%
+    #     add_segments(x = 0,
+    #                  xend = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
+    #                  y = prop,
+    #                  yend = prop,
+    #                  color = "red")
+    # }
     
     plot1 <- plot1 %>% 
       layout(
         showlegend = FALSE,
         xaxis = list(
           showticklabels = TRUE,
+          tickformat = ",",
+          showline = FALSE,
           zeroline = TRUE,
           title = "",
-          showline = FALSE,
           mirror = "ticks"
         ),
         yaxis = list(
           showticklabels = TRUE,
-          zeroline = TRUE,
-          title = "",
           ticksuffix = "%",
           showline = FALSE,
+          zeroline = TRUE,
+          title = "",
+          hoverformat = ".2f",
           mirror = "ticks"
         )
       )
@@ -167,7 +169,8 @@ server <- function(input, output, session) {
           shapes = list(
             list(
               type = "rect",
-              fillcolor = options()$square.fill,
+              fillcolor = options()$square.color,
+              line = list(color = options()$square.color),
               opacity = 0.3,
               x0 = 0,
               x1 = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
@@ -273,9 +276,11 @@ server <- function(input, output, session) {
                 cost = sum(cost, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
-      mutate(fte = round(fte, 1),
-             roi = paste0(round((target - cost) / cost * 100, 1), "%"),
-             productivity = round(target / fte, 1)) %>% 
+      mutate(hospital_num = format(hospital_num, big.mark = ","),
+             city_num = format(city_num, big.mark = ","),
+             fte = format(fte, big.mark = ",", nsmall = 1L),
+             roi = paste0(format((target - cost) / cost * 100, nsmall = 1L), "%"),
+             productivity = format(target / fte, big.mark = ",", nsmall = 1L)) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -577,13 +582,27 @@ server <- function(input, output, session) {
           categoryorder = "array",
           categoryarray = ~plot.data$x,
           title = "",
+          showticklabels = TRUE,
           mirror = "ticks"
         ),
         yaxis = list(
+          showticklabels = TRUE,
+          tickformat = ",",
+          showline = FALSE,
+          zeroline = TRUE,
           title = "",
           mirror = "ticks"
         )
       )
+    
+    if (input$kpi1 == "fte") {
+      plot1 <- plot1 %>% 
+        layout(
+          yaxis = list(
+            hoverformat = ".2f"
+          )
+        )
+    }
     
     plot1
   })
@@ -617,6 +636,12 @@ server <- function(input, output, session) {
   output$HospitalTable <- renderDT({
     if (is.null(ProvTable1()))
       return(NULL)
+    
+    if (input$kpi1 == "fte") {
+      dgt = 2
+    } else {
+      dgt = 0
+    }
     
     DT::datatable(
       ProvTable1(),
@@ -664,7 +689,7 @@ server <- function(input, output, session) {
       ) %>% 
       formatRound(
         columns = TRUE,
-        digits = 0,
+        digits = dgt,
         interval = 3
       )
   })
@@ -711,6 +736,9 @@ server <- function(input, output, session) {
           mirror = "ticks"
         ),
         yaxis = list(
+          showticklabels = TRUE,
+          tickformat = ",",
+          hoverformat = ",.2f",
           title = "",
           mirror = "ticks"
         )
@@ -842,38 +870,41 @@ server <- function(input, output, session) {
                 color = I(options()$total.color)) %>% 
       add_markers(x = x.mark,
                   y = y.mark,
-                  color = "red") %>% 
-      add_segments(x = x.mark,
-                   xend = x.mark,
-                   y = 0,
-                   yend = y.mark,
-                   color = "red") %>%
-      add_segments(x = 0,
-                   xend = x.mark,
-                   y = y.mark,
-                   yend = y.mark,
-                   color = "red") %>%
+                  color = I(options()$marker.color)) %>% 
+      # add_segments(x = x.mark,
+      #              xend = x.mark,
+      #              y = 0,
+      #              yend = y.mark,
+      #              color = "red") %>%
+      # add_segments(x = 0,
+      #              xend = x.mark,
+      #              y = y.mark,
+      #              yend = y.mark,
+      #              color = "red") %>%
       layout(
         showlegend = FALSE,
         xaxis = list(
           showticklabels = TRUE,
+          tickformat = ",",
+          showline = FALSE,
           zeroline = TRUE,
           title = "",
-          showline = FALSE,
           mirror = "ticks"
         ),
         yaxis = list(
           showticklabels = TRUE,
-          zeroline = TRUE,
-          title = "",
           ticksuffix = "%",
           showline = FALSE,
+          zeroline = TRUE,
+          title = "",
+          hoverformat = ".2f",
           mirror = "ticks"
         ),
         shapes = list(
           list(
             type = "rect",
-            fillcolor = options()$square.fill,
+            fillcolor = options()$square.color,
+            line = list(color = options()$square.color),
             opacity = 0.3,
             x0 = 0,
             x1 = x.mark,
@@ -972,9 +1003,11 @@ server <- function(input, output, session) {
                 cost = sum(cost, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
-      mutate(fte = round(fte, 1),
-             roi = paste0(round((target - cost) / cost * 100, 1), "%"),
-             productivity = round(target / fte, 1)) %>% 
+      mutate(hospital_num = format(hospital_num, big.mark = ","),
+             city_num = format(city_num, big.mark = ","),
+             fte = format(fte, big.mark = ",", nsmall = 1L),
+             roi = paste0(format((target - cost) / cost * 100, nsmall = 1L), "%"),
+             productivity = format(target / fte, big.mark = ",", nsmall = 1L)) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -1195,9 +1228,14 @@ server <- function(input, output, session) {
           categoryorder = "array",
           categoryarray = ~plot.data$x,
           title = "",
+          showticklabels = TRUE,
           mirror = "ticks"
         ),
         yaxis = list(
+          showticklabels = TRUE,
+          tickformat = ",",
+          showline = FALSE,
+          zeroline = TRUE,
           title = "",
           mirror = "ticks"
         )
@@ -1232,6 +1270,12 @@ server <- function(input, output, session) {
   output$HospitalTableRcmd <- renderDT({
     if (is.null(ProvTable1Rcmd()))
       return(NULL)
+    
+    if (input$kpi1 == "fte") {
+      dgt = 2
+    } else {
+      dgt = 0
+    }
     
     DT::datatable(
       ProvTable1Rcmd(),
@@ -1279,7 +1323,7 @@ server <- function(input, output, session) {
       # ) %>% 
       formatRound(
         columns = TRUE,
-        digits = 0,
+        digits = dgt,
         interval = 3
       )
   })
@@ -1316,6 +1360,9 @@ server <- function(input, output, session) {
           mirror = "ticks"
         ),
         yaxis = list(
+          showticklabels = TRUE,
+          tickformat = ",",
+          hoverformat = ",.2f",
           title = "",
           mirror = "ticks"
         )
