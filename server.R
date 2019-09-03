@@ -52,6 +52,15 @@ server <- function(input, output, session) {
     raw
   })
   
+  ## sku ----
+  observeEvent(raw(), {
+    updateSelectInput(session,
+                      inputId = "sku",
+                      label = "Selection SKU",
+                      choices = sort(unique(raw()$sku)),
+                      selected = sort(unique(raw()$sku)))
+  })
+  
   ## abandoned province ----
   observeEvent(raw(), {
     updateSelectInput(session,
@@ -107,9 +116,9 @@ server <- function(input, output, session) {
       return(NULL)
     
     if (is.na(input$kPotnCtrb)) {
-      prop <- 0
+      kProp <- 0
     } else {
-      prop <- input$kPotnCtrb
+      kProp <- input$kPotnCtrb
     }
     
     plot.data <- bind_rows(CalcData()$data1, CalcData()$data2) %>% 
@@ -123,21 +132,21 @@ server <- function(input, output, session) {
                 type = "scatter",
                 mode = "lines",
                 color = I(options()$total.color)) %>% 
-      add_markers(x = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
-                  y = prop,
+      add_markers(x = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
+                  y = kProp,
                   color = I(options()$marker.color))
     
-    # if (prop != 0) {
+    # if (kProp != 0) {
     #   plot1 <- plot1 %>% 
-    #     add_segments(x = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
-    #                  xend = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
+    #     add_segments(x = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
+    #                  xend = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
     #                  y = 0,
-    #                  yend = prop,
+    #                  yend = kProp,
     #                  color = "red") %>%
     #     add_segments(x = 0,
-    #                  xend = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
-    #                  y = prop,
-    #                  yend = prop,
+    #                  xend = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
+    #                  y = kProp,
+    #                  yend = kProp,
     #                  color = "red")
     # }
     
@@ -163,7 +172,7 @@ server <- function(input, output, session) {
         )
       )
     
-    if (prop != 0) {
+    if (kProp != 0) {
       plot1 <- plot1 %>% 
         layout(
           shapes = list(
@@ -173,10 +182,10 @@ server <- function(input, output, session) {
               line = list(color = options()$square.color),
               opacity = 0.2,
               x0 = 0,
-              x1 = nrow(plot.data[which(plot.data$potential0_cumctrb <= prop), ]),
+              x1 = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
               xref = "x",
               y0 = 0,
-              y1 = prop,
+              y1 = kProp,
               yref = "y"
             )
           )
@@ -196,9 +205,9 @@ server <- function(input, output, session) {
       return(NULL)
     
     if (is.na(input$kPotnCtrb)) {
-      prop <- 0
+      kProp <- 0
     } else {
-      prop <- input$kPotnCtrb
+      kProp <- input$kPotnCtrb
     }
     
     seg.data <- bind_rows(CalcData()$data1, CalcData()$data2) %>% 
@@ -207,7 +216,7 @@ server <- function(input, output, session) {
     kGrMean <- sum(seg.data$potential1, na.rm = TRUE) / sum(seg.data$potential0, na.rm = TRUE) - 1
     
     seg.a <- seg.data %>% 
-      filter(potential0_cumctrb <= prop,
+      filter(potential0_cumctrb <= kProp,
              growth >= kGrMean) %>% 
       mutate(hospital_num = n(),
              city_num = length(sort(unique(city)))) %>% 
@@ -220,9 +229,9 @@ server <- function(input, output, session) {
              productivity = target / fte) %>% 
       mutate(hospital_num = format(hospital_num, big.mark = ","),
              city_num = format(city_num, big.mark = ","),
-             fte = format(fte, big.mark = ",", nsmall = 1L),
-             roi = paste0(format(roi, nsmall = 1L), "%"),
-             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
+             fte = format(round(fte,1), big.mark = ","),
+             roi = paste0(round(roi, 1), "%"),
+             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -231,7 +240,7 @@ server <- function(input, output, session) {
       melt(id.vars = NULL)
     
     seg.b <- seg.data %>% 
-      filter(potential0_cumctrb <= prop,
+      filter(potential0_cumctrb <= kProp,
              growth < kGrMean) %>% 
       mutate(hospital_num = n(),
              city_num = length(sort(unique(city)))) %>% 
@@ -244,9 +253,9 @@ server <- function(input, output, session) {
              productivity = target / fte) %>% 
       mutate(hospital_num = format(hospital_num, big.mark = ","),
              city_num = format(city_num, big.mark = ","),
-             fte = format(fte, big.mark = ",", nsmall = 1L),
-             roi = paste0(format(roi, nsmall = 1L), "%"),
-             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
+             fte = format(round(fte,1), big.mark = ","),
+             roi = paste0(round(roi, 1), "%"),
+             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -255,7 +264,7 @@ server <- function(input, output, session) {
       melt(id.vars = NULL)
     
     seg.c <- seg.data %>% 
-      filter(potential0_cumctrb > prop,
+      filter(potential0_cumctrb > kProp,
              growth >= kGrMean) %>% 
       mutate(hospital_num = n(),
              city_num = length(sort(unique(city)))) %>% 
@@ -268,9 +277,9 @@ server <- function(input, output, session) {
              productivity = target / fte) %>% 
       mutate(hospital_num = format(hospital_num, big.mark = ","),
              city_num = format(city_num, big.mark = ","),
-             fte = format(fte, big.mark = ",", nsmall = 1L),
-             roi = paste0(format(roi, nsmall = 1L), "%"),
-             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
+             fte = format(round(fte,1), big.mark = ","),
+             roi = paste0(round(roi, 1), "%"),
+             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -279,7 +288,7 @@ server <- function(input, output, session) {
       melt(id.vars = NULL)
     
     seg.d <- seg.data %>% 
-      filter(potential0_cumctrb > prop,
+      filter(potential0_cumctrb > kProp,
              growth < kGrMean) %>% 
       mutate(hospital_num = n(),
              city_num = length(sort(unique(city)))) %>% 
@@ -292,9 +301,9 @@ server <- function(input, output, session) {
              productivity = target / fte) %>% 
       mutate(hospital_num = format(hospital_num, big.mark = ","),
              city_num = format(city_num, big.mark = ","),
-             fte = format(fte, big.mark = ",", nsmall = 1L),
-             roi = paste0(format(roi, nsmall = 1L), "%"),
-             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
+             fte = format(round(fte,1), big.mark = ","),
+             roi = paste0(round(roi, 1), "%"),
+             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -317,7 +326,24 @@ server <- function(input, output, session) {
       }
     }
     
+    seg.list[["kProp"]] <- kProp
+    seg.list[["kGrMean"]] <- kGrMean
+    
     seg.list
+  })
+  
+  output$seg.h <- renderText({
+    if (is.null(SegData()))
+      return("Growth Rate = 0")
+    
+    paste0("Growth Rate = ", format(SegData()$kGrMean, digits = 2L))
+  })
+  
+  output$seg.v <- renderText({
+    if (is.null(SegData()))
+      return("Potential Cumulation Contribution = 0%")
+    
+    paste0("Potential Cumulation Contribution = ", SegData()$kProp, "%")
   })
   
   output$TableA <- DT::renderDataTable({
@@ -462,13 +488,13 @@ server <- function(input, output, session) {
       return(NULL)
     
     if (is.na(input$kPotnCtrb)) {
-      prop <- 0
+      kProp <- 0
     } else {
-      prop <- input$kPotnCtrb
+      kProp <- input$kPotnCtrb
     }
     
     total.data <- CalcData()$data2 %>% 
-      filter(potential0_cumctrb <= prop,
+      filter(potential0_cumctrb <= kProp,
              !(province %in% input$aban))
     
     # if (is.null(input$aban)) {
@@ -939,10 +965,12 @@ server <- function(input, output, session) {
     seg.data <- CalcDataRcmd()$total.data %>% 
       filter(!(province %in% input$aban))
     
+    kRow <- as.numeric(CalcDataRcmd()$mark)
+    kProp <- round(CalcDataRcmd()$total.data$potential0_cumctrb[which(rownames(CalcDataRcmd()$total.data) == as.character(kRow))], 2)
     kGrMean <- sum(seg.data$potential1, na.rm = TRUE) / sum(seg.data$potential0, na.rm = TRUE) - 1
     
     seg.a <- seg.data %>% 
-      filter(row_number() <= as.numeric(CalcDataRcmd()$mark),
+      filter(potential0_cumctrb <= kProp,
              growth >= kGrMean) %>% 
       mutate(hospital_num = n(),
              city_num = length(sort(unique(city)))) %>% 
@@ -955,9 +983,9 @@ server <- function(input, output, session) {
              productivity = target / fte) %>% 
       mutate(hospital_num = format(hospital_num, big.mark = ","),
              city_num = format(city_num, big.mark = ","),
-             fte = format(fte, big.mark = ",", nsmall = 1L),
-             roi = paste0(format(roi, nsmall = 1L), "%"),
-             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
+             fte = format(round(fte,1), big.mark = ","),
+             roi = paste0(round(roi, 1), "%"),
+             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -966,7 +994,7 @@ server <- function(input, output, session) {
       melt(id.vars = NULL)
     
     seg.b <- seg.data %>% 
-      filter(row_number() <= as.numeric(CalcDataRcmd()$mark),
+      filter(potential0_cumctrb <= kProp,
              growth < kGrMean) %>% 
       mutate(hospital_num = n(),
              city_num = length(sort(unique(city)))) %>% 
@@ -979,9 +1007,9 @@ server <- function(input, output, session) {
              productivity = target / fte) %>% 
       mutate(hospital_num = format(hospital_num, big.mark = ","),
              city_num = format(city_num, big.mark = ","),
-             fte = format(fte, big.mark = ",", nsmall = 1L),
-             roi = paste0(format(roi, nsmall = 1L), "%"),
-             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
+             fte = format(round(fte,1), big.mark = ","),
+             roi = paste0(round(roi, 1), "%"),
+             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -990,7 +1018,7 @@ server <- function(input, output, session) {
       melt(id.vars = NULL)
     
     seg.c <- seg.data %>% 
-      filter(row_number() > as.numeric(CalcDataRcmd()$mark),
+      filter(potential0_cumctrb > kProp,
              growth >= kGrMean) %>% 
       mutate(hospital_num = n(),
              city_num = length(sort(unique(city)))) %>% 
@@ -1003,9 +1031,9 @@ server <- function(input, output, session) {
              productivity = target / fte) %>% 
       mutate(hospital_num = format(hospital_num, big.mark = ","),
              city_num = format(city_num, big.mark = ","),
-             fte = format(fte, big.mark = ",", nsmall = 1L),
-             roi = paste0(format(roi, nsmall = 1L), "%"),
-             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
+             fte = format(round(fte,1), big.mark = ","),
+             roi = paste0(round(roi, 1), "%"),
+             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -1014,7 +1042,7 @@ server <- function(input, output, session) {
       melt(id.vars = NULL)
     
     seg.d <- seg.data %>% 
-      filter(row_number() > as.numeric(CalcDataRcmd()$mark),
+      filter(potential0_cumctrb > kProp,
              growth < kGrMean) %>% 
       mutate(hospital_num = n(),
              city_num = length(sort(unique(city)))) %>% 
@@ -1027,9 +1055,9 @@ server <- function(input, output, session) {
              productivity = target / fte) %>% 
       mutate(hospital_num = format(hospital_num, big.mark = ","),
              city_num = format(city_num, big.mark = ","),
-             fte = format(fte, big.mark = ",", nsmall = 1L),
-             roi = paste0(format(roi, nsmall = 1L), "%"),
-             productivity = format(productivity, big.mark = ",", nsmall = 1L)) %>% 
+             fte = format(round(fte,1), big.mark = ","),
+             roi = paste0(round(roi, 1), "%"),
+             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
       select("Number of Hospital" = "hospital_num",
              "Number of City" = "city_num",
              "FTE" = "fte",
@@ -1052,7 +1080,24 @@ server <- function(input, output, session) {
       }
     }
     
+    seg.list[["kProp"]] <- kProp
+    seg.list[["kGrMean"]] <- kGrMean
+    
     seg.list
+  })
+  
+  output$segRcmd.h <- renderText({
+    if (is.null(SegDataRcmd()))
+      return("Growth Rate = 0")
+    
+    paste0("Growth Rate = ", format(SegDataRcmd()$kGrMean, digits = 2L))
+  })
+  
+  output$segRcmd.v <- renderText({
+    if (is.null(SegDataRcmd()))
+      return("Potential Cumulation Contribution = 0%")
+    
+    paste0("Potential Cumulation Contribution = ", SegDataRcmd()$kProp, "%")
   })
   
   output$TableARcmd <- DT::renderDataTable({
@@ -1473,17 +1518,17 @@ server <- function(input, output, session) {
     
     content = function(file) {
       if (is.na(input$kPotnCtrb)) {
-        prop <- 0
+        kProp <- 0
       } else {
-        prop <- input$kPotnCtrb
+        kProp <- input$kPotnCtrb
       }
       
       total.data <- CalcData()$data2 %>% 
-        filter(potential0_cumctrb <= prop,
+        filter(potential0_cumctrb <= kProp,
                !(province %in% input$aban)) %>% 
         bind_rows(CalcData()$data1)
       
-      write.csv(total.data, file, row.names = FALSE)
+      write.csv(total.data, file, row.names = FALSE, fileEncoding = "GB2312")
     }
   )
   
@@ -1497,7 +1542,7 @@ server <- function(input, output, session) {
         filter(row_number() < as.numeric(CalcDataRcmd()$mark)) %>% 
         select(-target_cumsum, -cost_cumsum, -fte_cumsum, -roi_cumsum, -productivity_cumsum)
       
-      write.csv(total.data, file, row.names = FALSE)
+      write.csv(total.data, file, row.names = FALSE, fileEncoding = "GB2312")
     }
   )
   

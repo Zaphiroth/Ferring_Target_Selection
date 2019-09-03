@@ -43,10 +43,9 @@ ui <- dashboardPage(
           12,
           # tags$head(tags$style(".progress-bar{background-color:#00a65a;}")),
           fileInput("raw", label = "Upload Raw Data"),
-          numericInput("kPotnCtrb", label = "Input Potential Cumulated con (%)", value = 90, min = 0, max = 100),
-          selectInput("sku", label = "Selection SKU", choices = c("Gly", "Pentasa TAB", "Pentase SUP"), 
-                      multiple = TRUE, selected = c("Gly", "Pentasa TAB", "Pentase SUP")),
-          selectInput("aban", label = "Abandoned Provinces", choices = "", selected = "", multiple = TRUE),
+          numericInput("kPotnCtrb", label = "Potential Cumulated Con. (%)", value = 90, min = 0, max = 100),
+          selectInput("sku", label = "Selection SKU", choices = "", multiple = TRUE),
+          selectInput("aban", label = "Abandoned Provinces", choices = "", multiple = TRUE),
           br(),
           tags$div(downloadButton(outputId = "DownloadSel", label = "Download", style = "width:150px; color:#000;"),
                    style = "display:inline-block; width:100%; text-align:center;")
@@ -70,8 +69,8 @@ ui <- dashboardPage(
             status = "primary",
             solidHeader = TRUE,
             collapsible = FALSE,
-            width = 6,
-            tags$div(plotlyOutput("Conc", height = "565px"))
+            width = 5,
+            tags$div(plotlyOutput("Conc", height = "604px"))
           ),
           
           box(
@@ -79,60 +78,66 @@ ui <- dashboardPage(
             status = "primary",
             solidHeader = TRUE,
             collapsible = FALSE,
-            width = 6,
+            width = 7,
             column(
-              6, 
-              fluidRow(
-                box(
-                  title = "C",
-                  status = "primary",
-                  solidHeader = TRUE,
-                  collapsible = FALSE,
-                  width = 12,
-                  style = options()$seg.style,
-                  tags$div(DT::dataTableOutput("TableC"),
-                           style = "font-size:90%;")
-                ),
-                box(
-                  title = "D",
-                  status = "primary",
-                  solidHeader = TRUE,
-                  collapsible = FALSE,
-                  width = 12,
-                  style = options()$seg.style,
-                  tags$div(DT::dataTableOutput("TableD"),
-                           style = "font-size:90%;")
-                )
-              )
+              1,
+              tags$div(strong(textOutput("seg.h")),
+                       style = "text-align:center; margin-top:300px;",
+                       class = "text-vertical")
             ),
             column(
-              6, 
+              11,
               fluidRow(
-                box(
-                  title = "A",
-                  status = "primary",
-                  solidHeader = TRUE,
-                  collapsible = FALSE,
-                  width = 12,
-                  style = options()$seg.style,
-                  tags$div(DT::dataTableOutput("TableA"),
-                           style = "font-size:90%;")
-                ),
-                box(
-                  title = "B",
-                  status = "primary",
-                  solidHeader = TRUE,
-                  collapsible = FALSE,
-                  width = 12,
-                  style = options()$seg.style,
-                  tags$div(DT::dataTableOutput("TableB"),
-                           style = "font-size:90%;")
-                )
+                tags$div(strong(textOutput("seg.v")),
+                         style = "text-align:center;")
+              ),
+              br(),
+              box(
+                title = "C",
+                status = "primary",
+                solidHeader = TRUE,
+                collapsible = FALSE,
+                width = 6,
+                style = options()$seg.style,
+                tags$div(DT::dataTableOutput("TableC", height = "200px"),
+                         style = "font-size:90%;")
+              ),
+              box(
+                title = "A",
+                status = "primary",
+                solidHeader = TRUE,
+                collapsible = FALSE,
+                width = 6,
+                style = options()$seg.style,
+                tags$div(DT::dataTableOutput("TableA", height = "200px"),
+                         style = "font-size:90%;")
+              ),
+              box(
+                title = "D",
+                status = "primary",
+                solidHeader = TRUE,
+                collapsible = FALSE,
+                width = 6,
+                style = options()$seg.style,
+                tags$div(DT::dataTableOutput("TableD", height = "200px"),
+                         style = "font-size:90%;")
+              ),
+              box(
+                title = "B",
+                status = "primary",
+                solidHeader = TRUE,
+                collapsible = FALSE,
+                width = 6,
+                style = options()$seg.style,
+                tags$div(DT::dataTableOutput("TableB", height = "200px"),
+                         style = "font-size:90%;")
               )
             )
-          ),
-          
-          br(),
+          )
+        ),
+        
+        # br(),
+        fluidRow(
           box(
             title = "Analysis of the results of hospital selection",
             status = "primary",
@@ -162,13 +167,14 @@ ui <- dashboardPage(
               box(
                 solidHeader = TRUE,
                 collapsible = FALSE,
-                width = 12, 
-                tags$div(plotlyOutput("HospitalPlot", height = "300px")),
+                width = 12,
+                tags$div(plotlyOutput("HospitalPlot", height = "250px")),
                 tags$div(DT::dataTableOutput("HospitalTable"),
                          style = "font-size:90%; overflow-x:scroll;",
                          class = "nowrap")
               )
             ),
+            # br(),
             fluidRow(
               box(
                 solidHeader = TRUE,
@@ -193,17 +199,11 @@ ui <- dashboardPage(
               box(
                 solidHeader = TRUE,
                 collapsible = FALSE,
-                width = 12, 
-                column(
-                  12,
-                  tags$div(plotlyOutput("IndexPlot", height = "250px"))
-                ),
-                column(
-                  12,
-                  tags$div(DT::dataTableOutput("IndexTable"),
-                           style = "font-size:90%; overflow-x:scroll;",
-                           class = "nowrap")
-                )
+                width = 12,
+                tags$div(plotlyOutput("IndexPlot", height = "250px")),
+                tags$div(DT::dataTableOutput("IndexTable"),
+                         style = "font-size:90%; overflow-x:scroll;",
+                         class = "nowrap")
               )
             )
           )
@@ -215,31 +215,33 @@ ui <- dashboardPage(
         value = "2",
         
         br(),
-        box(
-          solidHeader = TRUE,
-          collapsible = FALSE,
-          width = 12,
-          tags$div(
-            column(3, selectInput("scenario", label = "Scenario", choices = c("Max ROI", "All Standing"), 
-                                  selected = "Max Return", multiple = FALSE)),
-            column(7),
-            column(2,
-                   br(),
-                   tags$div(downloadButton(outputId = "DownloadRcmd", label = "Download", style = "width:100px; color:#000;"),
-                            style = "display:inline-block; width:100%; text-align:center;"))
-          ),
-          style = "background:#C8E6FF;"
+        fluidRow(
+          box(
+            solidHeader = TRUE,
+            collapsible = FALSE,
+            width = 12,
+            tags$div(
+              column(3, selectInput("scenario", label = "Scenario", choices = c("Max ROI", "All Standing"), 
+                                    selected = "Max Return", multiple = FALSE)),
+              column(7),
+              column(2,
+                     br(),
+                     tags$div(downloadButton(outputId = "DownloadRcmd", label = "Download", style = "width:100px; color:#000;"),
+                              style = "display:inline-block; width:100%; text-align:center;"))
+            ),
+            style = "background:#C8E6FF;"
+          )
         ),
         
-        br(),
+        # br(),
         fluidRow(
           box(
             title = "Concentration Curve",
             status = "primary",
             solidHeader = TRUE,
             collapsible = FALSE,
-            width = 6,
-            tags$div(plotlyOutput("ConcRcmd", height = "565px"))
+            width = 5,
+            tags$div(plotlyOutput("ConcRcmd", height = "604px"))
           ),
           
           box(
@@ -247,60 +249,66 @@ ui <- dashboardPage(
             status = "primary",
             solidHeader = TRUE,
             collapsible = FALSE,
-            width = 6,
+            width = 7,
             column(
-              6, 
-              fluidRow(
-                box(
-                  title = "C",
-                  status = "primary",
-                  solidHeader = TRUE,
-                  collapsible = FALSE,
-                  width = 12,
-                  style = options()$seg.style,
-                  tags$div(DT::dataTableOutput("TableCRcmd"),
-                           style = "font-size:90%;")
-                ),
-                box(
-                  title = "D",
-                  status = "primary",
-                  solidHeader = TRUE,
-                  collapsible = FALSE,
-                  width = 12,
-                  style = options()$seg.style,
-                  tags$div(DT::dataTableOutput("TableDRcmd"),
-                           style = "font-size:90%;")
-                )
-              )
+              1,
+              tags$div(strong(textOutput("segRcmd.h")),
+                       style = "text-align:center; margin-top:300px;",
+                       class = "text-vertical")
             ),
             column(
-              6, 
+              11,
               fluidRow(
-                box(
-                  title = "A",
-                  status = "primary",
-                  solidHeader = TRUE,
-                  collapsible = FALSE,
-                  width = 12,
-                  style = options()$seg.style,
-                  tags$div(DT::dataTableOutput("TableARcmd"),
-                           style = "font-size:90%;")
-                ),
-                box(
-                  title = "B",
-                  status = "primary",
-                  solidHeader = TRUE,
-                  collapsible = FALSE,
-                  width = 12,
-                  style = options()$seg.style,
-                  tags$div(DT::dataTableOutput("TableBRcmd"),
-                           style = "font-size:90%;")
-                )
+                tags$div(strong(textOutput("segRcmd.v")),
+                         style = "text-align:center;")
+              ),
+              br(),
+              box(
+                title = "C",
+                status = "primary",
+                solidHeader = TRUE,
+                collapsible = FALSE,
+                width = 6,
+                style = options()$seg.style,
+                tags$div(DT::dataTableOutput("TableCRcmd", height = "200px"),
+                         style = "font-size:90%;")
+              ),
+              box(
+                title = "A",
+                status = "primary",
+                solidHeader = TRUE,
+                collapsible = FALSE,
+                width = 6,
+                style = options()$seg.style,
+                tags$div(DT::dataTableOutput("TableARcmd", height = "200px"),
+                         style = "font-size:90%;")
+              ),
+              box(
+                title = "D",
+                status = "primary",
+                solidHeader = TRUE,
+                collapsible = FALSE,
+                width = 6,
+                style = options()$seg.style,
+                tags$div(DT::dataTableOutput("TableDRcmd", height = "200px"),
+                         style = "font-size:90%;")
+              ),
+              box(
+                title = "B",
+                status = "primary",
+                solidHeader = TRUE,
+                collapsible = FALSE,
+                width = 6,
+                style = options()$seg.style,
+                tags$div(DT::dataTableOutput("TableBRcmd", height = "200px"),
+                         style = "font-size:90%;")
               )
             )
-          ),
-          
-          br(),
+          )
+        ),
+        
+        # br(),
+        fluidRow(
           box(
             title = "Analysis of the results of hospital selection",
             status = "primary",
@@ -331,19 +339,14 @@ ui <- dashboardPage(
               box(
                 solidHeader = TRUE,
                 collapsible = FALSE,
-                width = 12, 
-                column(
-                  12,
-                  tags$div(plotlyOutput("HospitalPlotRcmd", height = "250px"))
-                ),
-                column(
-                  12,
-                  tags$div(DT::dataTableOutput("HospitalTableRcmd"),
-                           style = "font-size:90%; overflow-x:scroll;",
-                           class = "nowrap")
-                )
+                width = 12,
+                tags$div(plotlyOutput("HospitalPlotRcmd", height = "250px")),
+                tags$div(DT::dataTableOutput("HospitalTableRcmd"),
+                         style = "font-size:90%; overflow-x:scroll;",
+                         class = "nowrap")
               )
             ),
+            # br(),
             fluidRow(
               box(
                 solidHeader = TRUE,
@@ -368,21 +371,16 @@ ui <- dashboardPage(
               box(
                 solidHeader = TRUE,
                 collapsible = FALSE,
-                width = 12, 
-                column(
-                  12,
-                  tags$div(plotlyOutput("IndexPlotRcmd", height = "250px"))
-                ),
-                column(
-                  12,
-                  tags$div(DT::dataTableOutput("IndexTableRcmd"),
-                           style = "font-size:90%; overflow-x:scroll;",
-                           class = "nowrap")
-                )
+                width = 12,
+                tags$div(plotlyOutput("IndexPlotRcmd", height = "250px")),
+                tags$div(DT::dataTableOutput("IndexTableRcmd"),
+                         style = "font-size:90%; overflow-x:scroll;",
+                         class = "nowrap")
               )
             )
           )
         )
+        
       )
     )
   )

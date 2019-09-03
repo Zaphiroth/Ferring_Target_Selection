@@ -29,3 +29,10 @@ body {
 .nowrap {
 	white-space: nowrap;
 }
+
+.text-vertical {
+	position: relative;
+	left: -40px;
+	width: 150px;
+	transform: rotate(-90deg);
+}
