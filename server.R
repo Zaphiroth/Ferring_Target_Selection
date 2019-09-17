@@ -52,13 +52,31 @@ server <- function(input, output, session) {
     raw
   })
   
+  dtbt <- reactive({
+    if (is.null(input$dtbt))
+      return(NULL)
+    
+    inFile.dtbt <- input$dtbt
+    dtbt <- read_xlsx(
+      inFile.dtbt$datapath,
+      na = "NA"
+    ) %>% 
+      setDF() %>% 
+      select(SKU, `Hospital`, Province, City, `Doctor#-A`, `Doctor#-B`, `Doctor#-C`, `Doctor#-D`, 
+             `Potential（EUR）Y0`, `Potential（EUR）Y1`, `Target（EUR）`, flag)
+    colnames(dtbt) <- c("sku", "hospital", "province", "city", "doctor_a", "doctor_b", "doctor_c", 
+                       "doctor_d", "potential0", "potential1", "target", "flag")
+    
+    dtbt
+  })
+  
   ## sku ----
   observeEvent(raw(), {
     updateSelectInput(session,
                       inputId = "sku",
                       label = "Selection SKU",
                       choices = sort(unique(raw()$sku)),
-                      selected = sort(unique(raw()$sku)))
+                      selected = NULL)
   })
   
   ## abandoned province ----
@@ -71,7 +89,7 @@ server <- function(input, output, session) {
   })
   
   ## calculation data ----
-  CalcData <- reactive({
+  CalcData <- eventReactive(input$go, {
     if (is.null(raw()) | is.null(input$sku))
       return(NULL)
     raw <- raw()
@@ -79,11 +97,15 @@ server <- function(input, output, session) {
     cum <- raw %>% 
       distinct() %>% 
       filter(sku %in% input$sku) %>% 
+      mutate(freq = ifelse(sku == "Gly",
+                           doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
+                           ifelse(sku == "Pentasa SUP",
+                                  doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                  ifelse(sku == "Pentasa TAB",
+                                         doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                         0)))) %>% 
       group_by(hospital, province, city, flag) %>% 
-      summarise(doctor_a = sum(doctor_a, na.rm = TRUE),
-                doctor_b = sum(doctor_b, na.rm = TRUE),
-                doctor_c = sum(doctor_c, na.rm = TRUE),
-                doctor_d = sum(doctor_d, na.rm = TRUE),
+      summarise(freq = sum(freq, na.rm = TRUE),
                 potential0 = sum(potential0, na.rm = TRUE),
                 potential1 = sum(potential1, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
@@ -91,7 +113,7 @@ server <- function(input, output, session) {
       arrange(-potential0) %>% 
       mutate(potential0_cumsum = cumsum(potential0),
              potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
-             fte = (doctor_a * 4 + doctor_b * 2 + doctor_c * 1 + doctor_d * 1) / 8 * 12 / 185,
+             fte = freq / 8 * 12 / 185,
              cost = fte * 70000,
              productivity = target / fte,
              productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
@@ -111,7 +133,7 @@ server <- function(input, output, session) {
   })
   
   ## concentration curve ----
-  ConcPlot <- reactive({
+  ConcPlot <- eventReactive(input$go, {
     if (is.null(CalcData()))
       return(NULL)
     
@@ -200,7 +222,7 @@ server <- function(input, output, session) {
   })
   
   ## segmentation ----
-  SegData <- reactive({
+  SegData <- eventReactive(input$go, {
     if (is.null(CalcData()) | is.null(input$kPotnCtrb))
       return(NULL)
     
@@ -211,105 +233,210 @@ server <- function(input, output, session) {
     }
     
     seg.data <- bind_rows(CalcData()$data1, CalcData()$data2) %>% 
-      filter(!(province %in% input$aban))
+      filter(!(province %in% input$aban)) %>% 
+      mutate(market_share = target / potential0)
     
-    kGrMean <- sum(seg.data$potential1, na.rm = TRUE) / sum(seg.data$potential0, na.rm = TRUE) - 1
-    
-    seg.a <- seg.data %>% 
-      filter(potential0_cumctrb <= kProp,
-             growth >= kGrMean) %>% 
-      mutate(hospital_num = n(),
-             city_num = length(sort(unique(city)))) %>% 
-      group_by(hospital_num, city_num) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             productivity = target / fte) %>% 
-      mutate(hospital_num = format(hospital_num, big.mark = ","),
-             city_num = format(city_num, big.mark = ","),
-             fte = format(round(fte,1), big.mark = ","),
-             roi = paste0(round(roi, 1), "%"),
-             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
-      select("Number of Hospital" = "hospital_num",
-             "Number of City" = "city_num",
-             "FTE" = "fte",
-             "ROI" = "roi",
-             "Productivity" = "productivity") %>% 
-      melt(id.vars = NULL)
-    
-    seg.b <- seg.data %>% 
-      filter(potential0_cumctrb <= kProp,
-             growth < kGrMean) %>% 
-      mutate(hospital_num = n(),
-             city_num = length(sort(unique(city)))) %>% 
-      group_by(hospital_num, city_num) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             productivity = target / fte) %>% 
-      mutate(hospital_num = format(hospital_num, big.mark = ","),
-             city_num = format(city_num, big.mark = ","),
-             fte = format(round(fte,1), big.mark = ","),
-             roi = paste0(round(roi, 1), "%"),
-             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
-      select("Number of Hospital" = "hospital_num",
-             "Number of City" = "city_num",
-             "FTE" = "fte",
-             "ROI" = "roi",
-             "Productivity" = "productivity") %>% 
-      melt(id.vars = NULL)
-    
-    seg.c <- seg.data %>% 
-      filter(potential0_cumctrb > kProp,
-             growth >= kGrMean) %>% 
-      mutate(hospital_num = n(),
-             city_num = length(sort(unique(city)))) %>% 
-      group_by(hospital_num, city_num) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             productivity = target / fte) %>% 
-      mutate(hospital_num = format(hospital_num, big.mark = ","),
-             city_num = format(city_num, big.mark = ","),
-             fte = format(round(fte,1), big.mark = ","),
-             roi = paste0(round(roi, 1), "%"),
-             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
-      select("Number of Hospital" = "hospital_num",
-             "Number of City" = "city_num",
-             "FTE" = "fte",
-             "ROI" = "roi",
-             "Productivity" = "productivity") %>% 
-      melt(id.vars = NULL)
-    
-    seg.d <- seg.data %>% 
-      filter(potential0_cumctrb > kProp,
-             growth < kGrMean) %>% 
-      mutate(hospital_num = n(),
-             city_num = length(sort(unique(city)))) %>% 
-      group_by(hospital_num, city_num) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             productivity = target / fte) %>% 
-      mutate(hospital_num = format(hospital_num, big.mark = ","),
-             city_num = format(city_num, big.mark = ","),
-             fte = format(round(fte,1), big.mark = ","),
-             roi = paste0(round(roi, 1), "%"),
-             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
-      select("Number of Hospital" = "hospital_num",
-             "Number of City" = "city_num",
-             "FTE" = "fte",
-             "ROI" = "roi",
-             "Productivity" = "productivity") %>% 
-      melt(id.vars = NULL)
+    if (input$growth_share == "Growth Rate") {
+      kIndex <- input$kGrowth
+      
+      seg.a <- seg.data %>% 
+        filter(potential0_cumctrb <= kProp,
+               growth >= kIndex) %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.b <- seg.data %>% 
+        filter(potential0_cumctrb <= kProp,
+               growth < kIndex) %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.c <- seg.data %>% 
+        filter(potential0_cumctrb > kProp,
+               growth >= kIndex) %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.d <- seg.data %>% 
+        filter(potential0_cumctrb > kProp,
+               growth < kIndex) %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+    } else if (input$growth_share == "Market Share") {
+      kIndex <- input$kShare
+      
+      seg.a <- seg.data %>% 
+        filter(potential0_cumctrb <= kProp,
+               market_share >= kIndex) %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.b <- seg.data %>% 
+        filter(potential0_cumctrb <= kProp,
+               market_share < kIndex) %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.c <- seg.data %>% 
+        filter(potential0_cumctrb > kProp,
+               market_share >= kIndex) %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.d <- seg.data %>% 
+        filter(potential0_cumctrb > kProp,
+               market_share < kIndex) %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+    } else {
+      return(NULL)
+    }
     
     seg.na <- data.frame("variable" = c("Number of Hospital", "Number of City", 
                                         "FTE", "ROI", "Productivity"),
@@ -327,23 +454,21 @@ server <- function(input, output, session) {
     }
     
     seg.list[["kProp"]] <- kProp
-    seg.list[["kGrMean"]] <- kGrMean
+    seg.list[["kIndex"]] <- kIndex
     
     seg.list
   })
   
-  output$seg.h <- renderText({
-    if (is.null(SegData()))
-      return("Growth Rate = 0")
-    
-    paste0("Growth Rate = ", format(SegData()$kGrMean, digits = 2L))
+  output$seg.v <- renderText({
+    paste0("Potential Cumulation Contribution = ", SegData()$kProp, "%")
   })
   
-  output$seg.v <- renderText({
-    if (is.null(SegData()))
-      return("Potential Cumulation Contribution = 0%")
-    
-    paste0("Potential Cumulation Contribution = ", SegData()$kProp, "%")
+  output$seg.h1 <- renderText({
+    paste0(input$growth_share, " >= ", SegData()$kIndex, "%")
+  })
+  
+  output$seg.h2 <- renderText({
+    paste0(input$growth_share, " < ", SegData()$kIndex, "%")
   })
   
   output$TableA <- DT::renderDataTable({
@@ -483,7 +608,7 @@ server <- function(input, output, session) {
   })
   
   ## province data ----
-  ProvData <- reactive({
+  ProvData <- eventReactive(c(input$go, input$productivity, input$growth), {
     if (is.null(CalcData()) | is.null(input$kPotnCtrb))
       return(NULL)
     
@@ -509,11 +634,11 @@ server <- function(input, output, session) {
       covered.data <- total.data[which(total.data$productivity >= input$productivity), ]
     }
     
-    if (is.na(input$roi)) {
-      covered.data <- covered.data
-    } else {
-      covered.data <- covered.data[which(covered.data$roi >= input$roi), ]
-    }
+    # if (is.na(input$roi)) {
+    #   covered.data <- covered.data
+    # } else {
+    #   covered.data <- covered.data[which(covered.data$roi >= input$roi), ]
+    # }
     
     if (is.na(input$growth)) {
       covered.data <- covered.data
@@ -523,18 +648,15 @@ server <- function(input, output, session) {
     
     covered.prov.data <- covered.data %>% 
       bind_rows(CalcData()$data1) %>% 
-      group_by(province) %>% 
+    group_by(province) %>% 
       summarise(covered_hospital_num = n(),
                 covered_city_num = length(sort(unique(city))),
-                covered_doctor_a = sum(doctor_a, na.rm = TRUE),
-                covered_doctor_b = sum(doctor_b, na.rm = TRUE),
-                covered_doctor_c = sum(doctor_c, na.rm = TRUE),
-                covered_doctor_d = sum(doctor_d, na.rm = TRUE),
+                covered_freq = sum(freq, na.rm = TRUE),
                 covered_potential0 = sum(potential0, na.rm = TRUE),
                 covered_potential1 = sum(potential1, na.rm = TRUE),
                 covered_target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
-      mutate(covered_fte = (covered_doctor_a * 4 + covered_doctor_b * 2 + covered_doctor_c * 1 + covered_doctor_d * 1) / 8 * 12 / 185,
+      mutate(covered_fte = covered_freq / 8 * 12 / 185,
              covered_cost = covered_fte * 70000,
              covered_productivity = covered_target / covered_fte,
              covered_productivity = ifelse(is.na(covered_productivity) | is.nan(covered_productivity) | is.infinite(covered_productivity),
@@ -547,15 +669,12 @@ server <- function(input, output, session) {
       group_by(province) %>% 
       summarise(total_hospital_num = n(),
                 total_city_num = length(sort(unique(city))),
-                total_doctor_a = sum(doctor_a, na.rm = TRUE),
-                total_doctor_b = sum(doctor_b, na.rm = TRUE),
-                total_doctor_c = sum(doctor_c, na.rm = TRUE),
-                total_doctor_d = sum(doctor_d, na.rm = TRUE),
+                total_freq = sum(freq, na.rm = TRUE),
                 total_potential0 = sum(potential0, na.rm = TRUE),
                 total_potential1 = sum(potential1, na.rm = TRUE),
                 total_target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
-      mutate(total_fte = (total_doctor_a * 4 + total_doctor_b * 2 + total_doctor_c * 1 + total_doctor_d * 1) / 8 * 12 / 185,
+      mutate(total_fte = total_freq / 8 * 12 / 185,
              total_cost = total_fte * 70000,
              total_productivity = total_target / total_fte,
              total_productivity = ifelse(is.na(total_productivity) | is.nan(total_productivity) | is.infinite(total_productivity),
@@ -568,14 +687,11 @@ server <- function(input, output, session) {
       mutate_all(function(x) {ifelse(is.na(x), 0, x)}) %>% 
       mutate(uncovered_hospital_num = total_hospital_num - covered_hospital_num,
              uncovered_city_num = total_city_num - covered_city_num,
-             uncovered_doctor_a = total_doctor_a - covered_doctor_a,
-             uncovered_doctor_b = total_doctor_b - covered_doctor_b,
-             uncovered_doctor_c = total_doctor_c - covered_doctor_c,
-             uncovered_doctor_d = total_doctor_d - covered_doctor_d,
+             uncovered_freq = total_freq - covered_freq,
              uncovered_potential0 = total_potential0 - covered_potential0,
              uncovered_potential1 = total_potential1 - covered_potential1,
              uncovered_target = total_target - covered_target,
-             uncovered_fte = (uncovered_doctor_a * 4 + uncovered_doctor_b * 2 + uncovered_doctor_c * 1 + uncovered_doctor_d * 1) / 8 * 12 / 185,
+             uncovered_fte = uncovered_freq / 8 * 12 / 185,
              uncovered_cost = uncovered_fte * 70000,
              uncovered_productivity = uncovered_target / uncovered_fte,
              uncovered_productivity = ifelse(is.na(uncovered_productivity) | is.nan(uncovered_productivity) | is.infinite(uncovered_productivity),
@@ -587,7 +703,7 @@ server <- function(input, output, session) {
   })
   
   ## plot1 ----
-  ProvPlot1 <- reactive({
+  ProvPlot1 <- eventReactive(c(input$go, input$kpi1), {
     if (is.null(ProvData()) | is.null(input$kpi1))
       return(NULL)
     if (nrow(ProvData()) == 0)
@@ -597,9 +713,16 @@ server <- function(input, output, session) {
     plot.data <- plot.data[c("province",
                              paste0("covered_", input$kpi1),
                              paste0("uncovered_", input$kpi1),
-                             paste0("total_", input$kpi1))]
-    colnames(plot.data) <- c("x", "y1", "y2", "y")
-    plot.data <- arrange(plot.data, -y)
+                             paste0("total_", input$kpi1),
+                             "covered_productivity",
+                             "uncovered_productivity",
+                             "total_productivity")]
+    colnames(plot.data) <- c("x", "y1", "y2", "y", "z1", "z2", "z")
+    plot.data <- plot.data %>% 
+      mutate(z1 = format(round(z1, 2), big.mark = ","),
+             z2 = format(round(z2, 2), big.mark = ","),
+             z = format(round(z, 2), big.mark = ",")) %>% 
+      arrange(plot.data, -y)
     
     plot1 <- plot_ly(hoverinfo = "name+x+y")
     
@@ -614,24 +737,59 @@ server <- function(input, output, session) {
                type = "bar",
                name = "Uncovered",
                color = I(options()$uncovered.color)) %>% 
+      add_trace(x = plot.data$x,
+                y = plot.data$z,
+                yaxis = "y2",
+                type = "scatter",
+                mode = "lines",
+                name = "Total hospital",
+                color = I(options()$total.line.color)) %>% 
+      add_trace(x = plot.data$x,
+                y = plot.data$z1,
+                yaxis = "y2",
+                type = "scatter",
+                mode = "lines",
+                name = "Covered",
+                color = I(options()$covered.line.color)) %>% 
       layout(
         barmode = "stack",
         showlegend = TRUE,
+        legend = list(
+          x = 0,
+          y = 1.2,
+          orientation = "h"
+        ),
         xaxis = list(
           type = "category",
           categoryorder = "array",
           categoryarray = ~plot.data$x,
+          showline = FALSE,
           title = "",
           showticklabels = TRUE,
           mirror = "ticks"
         ),
         yaxis = list(
+          side = "left",
           showticklabels = TRUE,
           tickformat = ",",
           showline = FALSE,
+          showgrid = FALSE,
           zeroline = TRUE,
           title = "",
-          mirror = "ticks"
+          mirror = "ticks",
+          range = c(0, max(plot.data$y)*1.2)
+        ),
+        yaxis2 = list(
+          overlaying = "y",
+          side = "right",
+          showticklabels = TRUE,
+          tickformat = ",",
+          showline = FALSE,
+          showgrid = FALSE,
+          zeroline = TRUE,
+          title = "",
+          mirror = "ticks",
+          range = c(0, max(plot.data$z, plot.data$z1)*1.2)
         )
       )
     
@@ -652,7 +810,7 @@ server <- function(input, output, session) {
   })
   
   ## table1 ----
-  ProvTable1 <- reactive({
+  ProvTable1 <- eventReactive(c(input$go, input$kpi1), {
     if (is.null(ProvData()) | is.null(input$kpi1))
       return(NULL)
     if (nrow(ProvData()) == 0)
@@ -733,7 +891,7 @@ server <- function(input, output, session) {
   
   
   ## plot2 ----
-  ProvPlot2 <- reactive({
+  ProvPlot2 <- eventReactive(input$go, {
     if (is.null(ProvData()) | is.null(input$kpi2))
       return(NULL)
     if (nrow(ProvData()) == 0)
@@ -789,7 +947,7 @@ server <- function(input, output, session) {
   })
   
   ## table2 ----
-  ProvTable2 <- reactive({
+  ProvTable2 <- eventReactive(input$go, {
     if (is.null(ProvData()) | is.null(input$kpi2))
       return(NULL)
     if (nrow(ProvData()) == 0)
@@ -1246,18 +1404,22 @@ server <- function(input, output, session) {
              !(province %in% input$aban))
     
     covered.prov.data <- covered.data %>% 
+      mutate(freq = ifelse(sku == "Gly",
+                           doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
+                           ifelse(sku == "Pentasa SUP",
+                                  doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                  ifelse(sku == "Pentasa TAB",
+                                         doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                         0)))) %>% 
       group_by(province) %>% 
       summarise(covered_hospital_num = n(),
                 covered_city_num = length(sort(unique(city))),
-                covered_doctor_a = sum(doctor_a, na.rm = TRUE),
-                covered_doctor_b = sum(doctor_b, na.rm = TRUE),
-                covered_doctor_c = sum(doctor_c, na.rm = TRUE),
-                covered_doctor_d = sum(doctor_d, na.rm = TRUE),
+                covered_freq = sum(freq, na.rm = TRUE),
                 covered_potential0 = sum(potential0, na.rm = TRUE),
                 covered_potential1 = sum(potential1, na.rm = TRUE),
                 covered_target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
-      mutate(covered_fte = (covered_doctor_a * 4 + covered_doctor_b * 2 + covered_doctor_c * 1 + covered_doctor_d * 1) / 8 * 12 / 185,
+      mutate(covered_fte = covered_freq / 8 * 12 / 185,
              covered_cost = covered_fte * 70000,
              covered_productivity = covered_target / covered_fte,
              covered_productivity = ifelse(is.na(covered_productivity) | is.nan(covered_productivity) | is.infinite(covered_productivity),

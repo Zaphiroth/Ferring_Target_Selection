@@ -43,12 +43,28 @@ ui <- dashboardPage(
           12,
           # tags$head(tags$style(".progress-bar{background-color:#00a65a;}")),
           fileInput("raw", label = "Upload Raw Data"),
-          numericInput("kPotnCtrb", label = "Potential Cumulated Con. (%)", value = 90, min = 0, max = 100),
+          fileInput("dtbt", label = "Upload Distribution Data"),
+          numericInput("kPotnCtrb", label = "Potential Cumulated Con. (%)", value = 0, min = 0, max = 100),
+          selectInput("growth_share", label = "Growth Rate or Market Share", choices = c("Growth Rate", "Market Share"), multiple = FALSE),
+          conditionalPanel(condition = "input.growth_share == 'Growth Rate'",
+                           numericInput("kGrowth", label = "Grwoth Rate (%)", value = 0)),
+          conditionalPanel(condition = "input.growth_share == 'Market Share'",
+                           numericInput("kShare", label = "Market Share (%)", value = 0, min = 0, max = 100)),
           selectInput("sku", label = "Selection SKU", choices = "", multiple = TRUE),
           selectInput("aban", label = "Abandoned Provinces", choices = "", multiple = TRUE),
           br(),
-          tags$div(downloadButton(outputId = "DownloadSel", label = "Download", style = "width:150px; color:#000;"),
-                   style = "display:inline-block; width:100%; text-align:center;")
+          fluidRow(
+            tags$div(
+              column(6, tags$div(actionButton(inputId = "go", label = "Go", width = "80px", style = "color:#000;"),
+                                 style = "display:inline-block; width:100%;")),
+              column(6, tags$div(actionButton(inputId = "record", label = "Record", width = "80px", style = "color:#000;"),
+                                 style = "display:inline-block; width:100%;"),
+                     style = "padding: 0px;")
+            )
+          ),
+          br(),
+            tags$div(downloadButton(outputId = "DownloadSel", label = "Download", style = "width:150px; color:#000;"),
+                     style = "display:inline-block; width:100%; text-align:center;")
         )
       )
     )
@@ -81,13 +97,18 @@ ui <- dashboardPage(
             width = 7,
             column(
               1,
-              tags$div(strong(textOutput("seg.h")),
-                       style = "text-align:center; margin-top:300px;",
+              tags$div(strong(textOutput("seg.h1")),
+                       style = "text-align:center; margin-top:165px;",
+                       class = "text-vertical"),
+              tags$div(strong(textOutput("seg.h2")),
+                       style = "text-align:center; margin-top:265px;",
                        class = "text-vertical")
             ),
             column(
               11,
               fluidRow(
+                conditionalPanel("output.TableA == null",
+                                 br()),
                 tags$div(strong(textOutput("seg.v")),
                          style = "text-align:center;")
               ),
@@ -151,7 +172,7 @@ ui <- dashboardPage(
                 width = 12,
                 tags$div(
                   column(3, numericInput("productivity", label = "Productivity lowest limit by year", value = 0, min = 0)),
-                  column(3, numericInput("roi", label = "ROI lowest limit by year (%)", value = 0, min = 0)),
+                  # column(3, numericInput("roi", label = "ROI lowest limit by year (%)", value = 0, min = 0)),
                   column(3, numericInput("growth", label = "Growth rate lowest limit by year (%)", value = 0, min = 0)),
                   # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
                   #                       selected = "All", multiple = TRUE)),
@@ -173,39 +194,39 @@ ui <- dashboardPage(
                          style = "font-size:90%; overflow-x:scroll;",
                          class = "nowrap")
               )
-            ),
-            # br(),
-            fluidRow(
-              box(
-                solidHeader = TRUE,
-                collapsible = FALSE,
-                width = 12,
-                tags$div(
-                  # column(3, numericInput("productivity", label = "Productivity lowest limit by year", value = 0, min = 0)),
-                  # column(3, numericInput("roi", label = "ROI lowest limit by year", value = 0, min = 0)),
-                  # column(3, numericInput("growth", label = "Product sales growth rate lowest limit by year", value = 0, min = 0)),
-                  # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
-                  #                       selected = "All", multiple = TRUE)),
-                  column(9),
-                  column(3, selectInput("kpi2", label = "KPI", 
-                                        choices = c("Avg. Productivity" = "productivity", "ROI" = "roi"), 
-                                        selected = "Avg. Productivity", multiple = FALSE))
-                ),
-                style = "background:#C8E6FF;"
-              )
-            ),
-            br(),
-            fluidRow(
-              box(
-                solidHeader = TRUE,
-                collapsible = FALSE,
-                width = 12,
-                tags$div(plotlyOutput("IndexPlot", height = "250px")),
-                tags$div(DT::dataTableOutput("IndexTable"),
-                         style = "font-size:90%; overflow-x:scroll;",
-                         class = "nowrap")
-              )
             )
+            # br(),
+            # fluidRow(
+            #   box(
+            #     solidHeader = TRUE,
+            #     collapsible = FALSE,
+            #     width = 12,
+            #     tags$div(
+            #       # column(3, numericInput("productivity", label = "Productivity lowest limit by year", value = 0, min = 0)),
+            #       # column(3, numericInput("roi", label = "ROI lowest limit by year", value = 0, min = 0)),
+            #       # column(3, numericInput("growth", label = "Product sales growth rate lowest limit by year", value = 0, min = 0)),
+            #       # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
+            #       #                       selected = "All", multiple = TRUE)),
+            #       column(9),
+            #       column(3, selectInput("kpi2", label = "KPI", 
+            #                             choices = c("Avg. Productivity" = "productivity", "ROI" = "roi"), 
+            #                             selected = "Avg. Productivity", multiple = FALSE))
+            #     ),
+            #     style = "background:#C8E6FF;"
+            #   )
+            # ),
+            # br(),
+            # fluidRow(
+            #   box(
+            #     solidHeader = TRUE,
+            #     collapsible = FALSE,
+            #     width = 12,
+            #     tags$div(plotlyOutput("IndexPlot", height = "250px")),
+            #     tags$div(DT::dataTableOutput("IndexTable"),
+            #              style = "font-size:90%; overflow-x:scroll;",
+            #              class = "nowrap")
+            #   )
+            # )
           )
         )
       ),
