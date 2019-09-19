@@ -157,6 +157,22 @@ ui <- dashboardPage(
           )
         ),
         
+        fluidRow(
+          box(
+            title = "Actual Situation",
+            status = "primary",
+            solidHeader = TRUE,
+            collapsible = FALSE,
+            width = 12,
+            fluidRow(
+              column(6, tags$div(plotlyOutput("ActualPlot1"))),
+              column(6,
+                     tags$div(selectInput("actual", label = "Selection SKU", choices = "", multiple = TRUE)),
+                     tags$div(plotlyOutput("ActualPlot2")))
+            )
+          )
+        ),
+        
         # br(),
         fluidRow(
           box(
@@ -189,10 +205,19 @@ ui <- dashboardPage(
                 solidHeader = TRUE,
                 collapsible = FALSE,
                 width = 12,
-                tags$div(plotlyOutput("HospitalPlot", height = "250px")),
+                tags$div(plotlyOutput("HospitalPlot")),
                 tags$div(DT::dataTableOutput("HospitalTable"),
                          style = "font-size:90%; overflow-x:scroll;",
                          class = "nowrap")
+              )
+            ),
+            br(),
+            fluidRow(
+              box(
+                solidHeader = TRUE,
+                collapsible = FALSE,
+                width = 12,
+                tags$div(plotlyOutput("SharePlot"))
               )
             )
             # br(),

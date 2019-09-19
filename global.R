@@ -23,6 +23,7 @@ library(leaflet)
 library(leafletCN)
 library(shinyWidgets)
 library(readr)
+library(OneR)
 
 options(shiny.maxRequestSize = 1000 * 1024 ^ 2,
         seg.color = "#FFFFF0",
@@ -33,4 +34,6 @@ options(shiny.maxRequestSize = 1000 * 1024 ^ 2,
         covered.color = "#17B0F7",
         uncovered.color = "#0000CD",
         covered.line.color = "#FFC0CB",
-        total.line.color = "#DC143C")
+        total.line.color = "#DC143C",
+        num.color = "#4472C4",
+        share.color = "#DC143C")

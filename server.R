@@ -44,9 +44,9 @@ server <- function(input, output, session) {
       na = "NA"
     ) %>% 
       setDF() %>% 
-      select(SKU, `Hospital`, Province, City, `Doctor#-A`, `Doctor#-B`, `Doctor#-C`, `Doctor#-D`, 
-             `Potential（EUR）Y0`, `Potential（EUR）Y1`, `Target（EUR）`, flag)
-    colnames(raw) <- c("sku", "hospital", "province", "city", "doctor_a", "doctor_b", "doctor_c", 
+      select(SKU, `Hospital`, `Decile by market`, `Is there quota`, Province, City, `Doctor#-A`, `Doctor#-B`, 
+             `Doctor#-C`, `Doctor#-D`, `Potential（EUR）Y0`, `Potential（EUR）Y1`, `Target（EUR）`, flag)
+    colnames(raw) <- c("sku", "hospital", "decile", "is", "province", "city", "doctor_a", "doctor_b", "doctor_c", 
                        "doctor_d", "potential0", "potential1", "target", "flag")
     
     raw
@@ -62,10 +62,10 @@ server <- function(input, output, session) {
       na = "NA"
     ) %>% 
       setDF() %>% 
-      select(SKU, `Hospital`, Province, City, `Doctor#-A`, `Doctor#-B`, `Doctor#-C`, `Doctor#-D`, 
-             `Potential（EUR）Y0`, `Potential（EUR）Y1`, `Target（EUR）`, flag)
-    colnames(dtbt) <- c("sku", "hospital", "province", "city", "doctor_a", "doctor_b", "doctor_c", 
-                       "doctor_d", "potential0", "potential1", "target", "flag")
+      select(`大区`, `大区经理`, `地区1`, `地区2`, `地区经理`, `代表区域`, `代表`, `产品组`, `医院编码`, 
+             `医院名称`, `产品编码`, `产品名称`, `MAT 1905（EUR）`)
+    colnames(dtbt) <- c("大区", "大区经理", "地区1", "地区2", "地区经理", "代表区域", "代表", "产品组", 
+                        "医院编码", "医院名称", "产品编码", "产品名称", "mat")
     
     dtbt
   })
@@ -104,7 +104,7 @@ server <- function(input, output, session) {
                                   ifelse(sku == "Pentasa TAB",
                                          doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
                                          0)))) %>% 
-      group_by(hospital, province, city, flag) %>% 
+      group_by(hospital, decile, province, city, is, flag) %>% 
       summarise(freq = sum(freq, na.rm = TRUE),
                 potential0 = sum(potential0, na.rm = TRUE),
                 potential1 = sum(potential1, na.rm = TRUE),
@@ -646,9 +646,28 @@ server <- function(input, output, session) {
       covered.data <- covered.data[which(covered.data$growth >= input$growth), ]
     }
     
+    actual.prov.data <- covered.data %>% 
+      bind_rows(CalcData()$data1) %>% 
+      filter(is == "Y") %>% 
+      group_by(province) %>% 
+      summarise(actual_hospital_num = n(),
+                actual_city_num = length(sort(unique(city))),
+                actual_freq = sum(freq, na.rm = TRUE),
+                actual_potential0 = sum(potential0, na.rm = TRUE),
+                actual_potential1 = sum(potential1, na.rm = TRUE),
+                actual_target = sum(target, na.rm = TRUE)) %>% 
+      ungroup() %>% 
+      mutate(actual_fte = actual_freq / 8 * 12 / 185,
+             actual_cost = actual_fte * 70000,
+             actual_productivity = actual_target / actual_fte,
+             actual_productivity = ifelse(is.na(actual_productivity) | is.nan(actual_productivity) | is.infinite(actual_productivity),
+                                          0,
+                                          actual_productivity),
+             actual_roi = (actual_target - actual_cost) / actual_cost)
+    
     covered.prov.data <- covered.data %>% 
       bind_rows(CalcData()$data1) %>% 
-    group_by(province) %>% 
+      group_by(province) %>% 
       summarise(covered_hospital_num = n(),
                 covered_city_num = length(sort(unique(city))),
                 covered_freq = sum(freq, na.rm = TRUE),
@@ -683,6 +702,7 @@ server <- function(input, output, session) {
              total_roi = (total_target - total_cost) / total_cost)
     
     prov.data <- total.prov.data %>% 
+      left_join(actual.prov.data, by  = "province") %>% 
       left_join(covered.prov.data, by = "province") %>% 
       mutate_all(function(x) {ifelse(is.na(x), 0, x)}) %>% 
       mutate(uncovered_hospital_num = total_hospital_num - covered_hospital_num,
@@ -702,6 +722,160 @@ server <- function(input, output, session) {
     prov.data
   })
   
+  ## actual plot1 ----
+  ActualPlot1 <- eventReactive(input$go, {
+    if (is.null(dtbt())) {
+      return(NULL)
+    }
+    
+    plot.data <- dtbt() %>% 
+      group_by(`代表`) %>% 
+      summarise(mat = sum(mat, na.rm = TRUE)) %>% 
+      ungroup() %>% 
+      mutate(section = cut(mat, breaks = seq(0, 600000, 60000), 
+                           labels = c("0~60", "60~120", "120~180", "180~240", "240~300", 
+                                      "300~360", "360~420", "420~480", "480~540", "540~600"))) %>% 
+      arrange(section) %>% 
+      group_by(section) %>% 
+      summarise(rep_num = n()) %>% 
+      ungroup()
+    
+    plot1 <- plot_ly(hoverinfo = "name+x+y")
+    
+    plot1 <- plot1 %>% 
+      add_trace(x = plot.data$section,
+                y = plot.data$rep_num,
+                name = "代表",
+                type = "bar",
+                text = plot.data$rep_num,
+                textposition = "outside",
+                color = I(options()$num.color)) %>% 
+      layout(
+        title = "2018 GU Territory Distribution by Value",
+        showlegend = FALSE,
+        xaxis = list(
+          title = "Unit: thousand",
+          type = "category",
+          categoryorder = "array",
+          categoryarray = ~plot.data$section,
+          mirror = "ticks"
+        ),
+        yaxis = list(
+          title = "",
+          showticklabels = FALSE,
+          mirror = "ticks"
+        )
+      )
+    
+    plot1
+  })
+  
+  output$ActualPlot1 <- renderPlotly({
+    ActualPlot1()
+  })
+  
+  ## actual plot2 ----
+  observeEvent(raw(), {
+    updateSelectInput(session,
+                      inputId = "actual",
+                      label = "Selection SKU",
+                      choices = sort(unique(raw()$sku)),
+                      selected = sort(unique(raw()$sku)))
+  })
+  
+  ActualPlot2 <- eventReactive(c(input$go, input$actual), {
+    if (is.null(raw()) | is.null(input$actual)) {
+      return(NULL)
+    }
+    
+    plot.data <- raw() %>% 
+      filter(is == "Y",
+             sku %in% input$actual) %>% 
+      group_by(hospital, decile) %>% 
+      summarise(potential0 = sum(potential0, na.rm = TRUE),
+                target = sum(target, na.rm = TRUE)) %>% 
+      ungroup() %>% 
+      group_by(decile) %>% 
+      summarise(potential0 = sum(potential0, na.rm = TRUE),
+                target = sum(target, na.rm = TRUE),
+                hosp_num = n()) %>% 
+      ungroup() %>% 
+      mutate(market_share = target / potential0,
+             decile = factor(decile, levels = c("D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10"))) %>% 
+      arrange(decile)
+    
+    plot1 <- plot_ly(hoverinfo = "name+x+y")
+    
+    plot1 <- plot1 %>% 
+      add_trace(x = plot.data$decile,
+                y = plot.data$hosp_num,
+                name = "Hospital",
+                type = "bar",
+                # text = plot.data$hosp_num,
+                # textposition = "outside",
+                color = I(options()$num.color)) %>% 
+      add_trace(x = plot.data$decile,
+                y = plot.data$market_share,
+                name = "Market share",
+                yaxis = "y2",
+                type = "scatter",
+                mode = "lines",
+                color = I(options()$share.color)) %>% 
+      layout(
+        title = "2018 GU Market Share by Decile",
+        showlegend = TRUE,
+        legend = list(
+          x = 0.215,
+          y = 1.05,
+          orientation = "h"
+        ),
+        margin = list(
+          l = 50,
+          r = 50,
+          b = 50,
+          t = 50,
+          pad = 4
+        ),
+        xaxis = list(
+          title = "",
+          type = "category",
+          # categoryorder = "array",
+          # categoryarray = ~c("D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10"),
+          showticklabels = TRUE,
+          mirror = "ticks"
+        ),
+        yaxis = list(
+          side = "left",
+          title = "",
+          range = c(0, max(plot.data$hosp_num)*1.2),
+          zeroline = TRUE,
+          showgrid = TRUE,
+          showticklabels = TRUE,
+          tickformat = ",",
+          hoverformat = ",",
+          mirror = "ticks"
+        ),
+        yaxis2 = list(
+          overlaying = "y",
+          side = "right",
+          title = "",
+          range = c(0, max(plot.data$market_share)*1.2),
+          zeroline = TRUE,
+          showgrid = FALSE,
+          showticklabels = TRUE,
+          tickformat = "%",
+          hoverformat = "%",
+          mirror = "ticks"
+        )
+      )
+    
+    plot1
+  })
+  
+  output$ActualPlot2 <- renderPlotly({
+    ActualPlot2()
+  })
+  
   ## plot1 ----
   ProvPlot1 <- eventReactive(c(input$go, input$kpi1), {
     if (is.null(ProvData()) | is.null(input$kpi1))
@@ -709,36 +883,41 @@ server <- function(input, output, session) {
     if (nrow(ProvData()) == 0)
       return(NULL)
     
-    plot.data <- ProvData()
-    plot.data <- plot.data[c("province",
-                             paste0("covered_", input$kpi1),
-                             paste0("uncovered_", input$kpi1),
-                             paste0("total_", input$kpi1),
-                             "covered_productivity",
-                             "uncovered_productivity",
-                             "total_productivity")]
-    colnames(plot.data) <- c("x", "y1", "y2", "y", "z1", "z2", "z")
+    plot.data <- ProvData()[c("province",
+                              paste0("actual_", input$kpi1),
+                              paste0("covered_", input$kpi1),
+                              paste0("uncovered_", input$kpi1),
+                              paste0("total_", input$kpi1),
+                              "actual_productivity",
+                              "covered_productivity",
+                              "uncovered_productivity",
+                              "total_productivity")]
+    colnames(plot.data) <- c("x", "y1", "y2", "y3", "y", "z1", "z2", "z3", "z")
     plot.data <- plot.data %>% 
-      mutate(z1 = format(round(z1, 2), big.mark = ","),
-             z2 = format(round(z2, 2), big.mark = ","),
-             z = format(round(z, 2), big.mark = ",")) %>% 
-      arrange(plot.data, -y)
+      # mutate(z1 = format(round(z1, 2), big.mark = ","),
+      #        z2 = format(round(z2, 2), big.mark = ","),
+      #        z3 = format(round(z3, 2), big.mark = ","),
+      #        z = format(round(z, 2), big.mark = ",")) %>% 
+      arrange(-y)
     
     plot1 <- plot_ly(hoverinfo = "name+x+y")
     
     plot1 <- plot1 %>% 
       add_bars(x = plot.data$x,
-               y = plot.data$y1,
+               y = plot.data$y2,
                type = "bar",
                name = "Covered",
                color = I(options()$covered.color)) %>% 
       add_bars(x = plot.data$x,
-               y = plot.data$y2,
+               y = plot.data$y3,
                type = "bar",
                name = "Uncovered",
                color = I(options()$uncovered.color)) %>% 
       add_trace(x = plot.data$x,
                 y = plot.data$z,
+                text = format(round(plot.data$z, 2), big.mark = ","),
+                textfont = list(color = options()$total.line.color),
+                textposition = "middle top",
                 yaxis = "y2",
                 type = "scatter",
                 mode = "lines",
@@ -746,6 +925,9 @@ server <- function(input, output, session) {
                 color = I(options()$total.line.color)) %>% 
       add_trace(x = plot.data$x,
                 y = plot.data$z1,
+                text = format(round(plot.data$z1, 2), big.mark = ","),
+                textfont = list(color = options()$covered.line.color),
+                textposition = "middle top",
                 yaxis = "y2",
                 type = "scatter",
                 mode = "lines",
@@ -758,6 +940,13 @@ server <- function(input, output, session) {
           x = 0,
           y = 1.2,
           orientation = "h"
+        ),
+        margin = list(
+          l = 50,
+          r = 50,
+          b = 50,
+          t = 50,
+          pad = 4
         ),
         xaxis = list(
           type = "category",
@@ -773,23 +962,24 @@ server <- function(input, output, session) {
           showticklabels = TRUE,
           tickformat = ",",
           showline = FALSE,
-          showgrid = FALSE,
+          showgrid = TRUE,
           zeroline = TRUE,
           title = "",
-          mirror = "ticks",
-          range = c(0, max(plot.data$y)*1.2)
+          range = c(0, max(plot.data$y)*1.2),
+          mirror = "ticks"
         ),
         yaxis2 = list(
           overlaying = "y",
           side = "right",
           showticklabels = TRUE,
           tickformat = ",",
+          hoverformat = ",.2f",
           showline = FALSE,
           showgrid = FALSE,
           zeroline = TRUE,
           title = "",
-          mirror = "ticks",
-          range = c(0, max(plot.data$z, plot.data$z1)*1.2)
+          range = c(0, max(plot.data$z, plot.data$z1)*1.2),
+          mirror = "ticks"
         )
       )
     
@@ -816,19 +1006,22 @@ server <- function(input, output, session) {
     if (nrow(ProvData()) == 0)
       return(NULL)
     
-    plot.data <- ProvData()
-    plot.data <- plot.data[c("province",
-                             paste0("covered_", input$kpi1),
-                             paste0("uncovered_", input$kpi1),
-                             paste0("total_", input$kpi1))]
-    colnames(plot.data) <- c("index", "Covered", "Uncovered", "Total")
+    table.data <- ProvData()
+    table.data <- table.data[c("province",
+                               paste0("actual_", input$kpi1),
+                               paste0("covered_", input$kpi1),
+                               paste0("uncovered_", input$kpi1),
+                               paste0("total_", input$kpi1))]
+    colnames(table.data) <- c("index", "Actual", "Covered", "Uncovered", "Total")
     
-    ordering <- arrange(plot.data, -`Total`)$index
-    plot.data <- melt(plot.data, id.vars = "index", variable.name = "省份") %>% 
+    ordering <- arrange(table.data, -`Total`)$index
+    table.data <- table.data %>% 
+      select(-Total) %>% 
+      melt(id.vars = "index", variable.name = "省份") %>% 
       dcast(`省份`~index, value.var = "value") %>% 
       select("省份", ordering)
     
-    plot.data
+    table.data
   })
   
   output$HospitalTable <- DT::renderDataTable({
@@ -870,12 +1063,12 @@ server <- function(input, output, session) {
         bInfo = FALSE
       )
     ) %>% 
-      formatStyle(
-        "省份",
-        target = "row",
-        # color = styleEqual("Total", options()$table.color),
-        fontWeight = styleEqual("Total", "bold")
-      ) %>% 
+      # formatStyle(
+      #   "省份",
+      #   target = "row",
+      #   # color = styleEqual("Total", options()$table.color),
+      #   fontWeight = styleEqual("Total", "bold")
+      # ) %>% 
       formatStyle(
         "省份",
         color = options()$table.color,
@@ -889,52 +1082,110 @@ server <- function(input, output, session) {
       )
   })
   
-  
-  ## plot2 ----
-  ProvPlot2 <- eventReactive(input$go, {
-    if (is.null(ProvData()) | is.null(input$kpi2))
+  ## share plot ----
+  SharePlot <- eventReactive(input$go, {
+    if (is.null(CalcData()) | is.null(input$kPotnCtrb)) {
       return(NULL)
-    if (nrow(ProvData()) == 0)
-      return(NULL)
+    }
     
-    plot.data <- ProvData()
-    plot.data <- plot.data[c("province",
-                             paste0("covered_", input$kpi2),
-                             paste0("uncovered_", input$kpi2),
-                             paste0("total_", input$kpi2))]
-    colnames(plot.data) <- c("x", "y1", "y2", "y")
-    plot.data <- arrange(plot.data, -y)
+    if (is.na(input$kPotnCtrb)) {
+      kProp <- 0
+    } else {
+      kProp <- input$kPotnCtrb
+    }
+    
+    total.data <- CalcData()$data2 %>% 
+      filter(potential0_cumctrb <= kProp,
+             !(province %in% input$aban))
+    
+    if (is.na(input$productivity)) {
+      covered.data <- total.data
+    } else {
+      covered.data <- total.data[which(total.data$productivity >= input$productivity), ]
+    }
+    
+    if (is.na(input$growth)) {
+      covered.data <- covered.data
+    } else {
+      covered.data <- covered.data[which(covered.data$growth >= input$growth), ]
+    }
+    
+    plot.data <- covered.data %>% 
+      bind_rows(CalcData()$data1) %>% 
+      group_by(hospital, decile) %>% 
+      summarise(potential0 = sum(potential0, na.rm = TRUE),
+                target = sum(target, na.rm = TRUE)) %>% 
+      ungroup() %>% 
+      group_by(decile) %>% 
+      summarise(potential0 = sum(potential0, na.rm = TRUE),
+                target = sum(target, na.rm = TRUE),
+                hosp_num = n()) %>% 
+      ungroup() %>% 
+      mutate(market_share = target / potential0,
+             decile = factor(decile, levels = c("D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10"))) %>% 
+      arrange(decile)
     
     plot1 <- plot_ly(hoverinfo = "name+x+y")
     
     plot1 <- plot1 %>% 
-      add_trace(x = plot.data$x,
-                y = plot.data$y,
+      add_trace(x = plot.data$decile,
+                y = plot.data$hosp_num,
+                name = "Hospital",
+                type = "bar",
+                # text = plot.data$hosp_num,
+                # textposition = "outside",
+                color = I(options()$num.color)) %>% 
+      add_trace(x = plot.data$decile,
+                y = plot.data$market_share,
+                name = "Market share",
+                yaxis = "y2",
                 type = "scatter",
                 mode = "lines",
-                name = "Total hospital",
-                color = I(options()$total.color)) %>% 
-      add_trace(x = plot.data$x,
-                y = plot.data$y1,
-                type = "scatter",
-                mode = "lines",
-                name = "Covered",
-                color = I(options()$covered.color)) %>% 
+                color = I(options()$share.color)) %>% 
       layout(
+        title = "Market Share in Covered Hospitals",
         showlegend = TRUE,
+        legend = list(
+          x = 0.38,
+          y = 1.05,
+          orientation = "h"
+        ),
+        margin = list(
+          l = 50,
+          r = 50,
+          b = 50,
+          t = 50,
+          pad = 4
+        ),
         xaxis = list(
-          type = "category",
-          categoryorder = "array",
-          categoryarray = ~plot.data$x,
-          showgrid = FALSE,
           title = "",
+          type = "category",
+          # categoryorder = "array",
+          # categoryarray = ~c("D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10"),
+          showticklabels = TRUE,
           mirror = "ticks"
         ),
         yaxis = list(
+          side = "left",
+          title = "",
+          range = c(0, max(plot.data$hosp_num)*1.2),
+          zeroline = TRUE,
+          showgrid = TRUE,
           showticklabels = TRUE,
           tickformat = ",",
-          hoverformat = ",.2f",
+          hoverformat = ",",
+          mirror = "ticks"
+        ),
+        yaxis2 = list(
+          overlaying = "y",
+          side = "right",
           title = "",
+          range = c(0, max(plot.data$market_share)*1.2),
+          zeroline = TRUE,
+          showgrid = FALSE,
+          showticklabels = TRUE,
+          tickformat = "%",
+          hoverformat = "%",
           mirror = "ticks"
         )
       )
@@ -942,83 +1193,140 @@ server <- function(input, output, session) {
     plot1
   })
   
-  output$IndexPlot <- renderPlotly({
-    ProvPlot2()
+  output$SharePlot <- renderPlotly({
+    SharePlot()
   })
+  
+  
+  ## plot2 ----
+  # ProvPlot2 <- eventReactive(input$go, {
+  #   if (is.null(ProvData()) | is.null(input$kpi2))
+  #     return(NULL)
+  #   if (nrow(ProvData()) == 0)
+  #     return(NULL)
+  #   
+  #   plot.data <- ProvData()
+  #   plot.data <- plot.data[c("province",
+  #                            paste0("covered_", input$kpi2),
+  #                            paste0("uncovered_", input$kpi2),
+  #                            paste0("total_", input$kpi2))]
+  #   colnames(plot.data) <- c("x", "y1", "y2", "y")
+  #   plot.data <- arrange(plot.data, -y)
+  #   
+  #   plot1 <- plot_ly(hoverinfo = "name+x+y")
+  #   
+  #   plot1 <- plot1 %>% 
+  #     add_trace(x = plot.data$x,
+  #               y = plot.data$y,
+  #               type = "scatter",
+  #               mode = "lines",
+  #               name = "Total hospital",
+  #               color = I(options()$total.color)) %>% 
+  #     add_trace(x = plot.data$x,
+  #               y = plot.data$y1,
+  #               type = "scatter",
+  #               mode = "lines",
+  #               name = "Covered",
+  #               color = I(options()$covered.color)) %>% 
+  #     layout(
+  #       showlegend = TRUE,
+  #       xaxis = list(
+  #         type = "category",
+  #         categoryorder = "array",
+  #         categoryarray = ~plot.data$x,
+  #         showgrid = FALSE,
+  #         title = "",
+  #         mirror = "ticks"
+  #       ),
+  #       yaxis = list(
+  #         showticklabels = TRUE,
+  #         tickformat = ",",
+  #         hoverformat = ",.2f",
+  #         title = "",
+  #         mirror = "ticks"
+  #       )
+  #     )
+  #   
+  #   plot1
+  # })
+  # 
+  # output$IndexPlot <- renderPlotly({
+  #   ProvPlot2()
+  # })
   
   ## table2 ----
-  ProvTable2 <- eventReactive(input$go, {
-    if (is.null(ProvData()) | is.null(input$kpi2))
-      return(NULL)
-    if (nrow(ProvData()) == 0)
-      return(NULL)
-    
-    plot.data <- ProvData()
-    plot.data <- plot.data[c("province",
-                             paste0("covered_", input$kpi2),
-                             paste0("uncovered_", input$kpi2),
-                             paste0("total_", input$kpi2))]
-    colnames(plot.data) <- c("index", "Covered", "Uncovered", "Total")
-    
-    ordering <- arrange(plot.data, -`Total`)$index
-    plot.data <- melt(plot.data, id.vars = "index", variable.name = "省份") %>% 
-      dcast(`省份`~index, value.var = "value") %>% 
-      select("省份", ordering)
-    
-    plot.data
-  })
-  
-  output$IndexTable <- DT::renderDataTable({
-    if (is.null(ProvTable2()))
-      return(NULL)
-    
-    DT::datatable(
-      ProvTable2(),
-      rownames = FALSE,
-      # extensions = c('FixedColumns', 'Buttons'),
-      #filter = 'bottom',
-      ##### this sentence need to be changed when new variables added
-      options = list(
-        # dom = '<"bottom">Bfrtpl',
-        # buttons = I('colvis'),
-        columnDefs = list(
-          list(
-            className = 'dt-center',
-            targets = '_all'
-          )
-        ),
-        initComplete = JS(
-          "function(settings, json) {",
-          "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
-          "}"
-        ),
-        paging = FALSE,
-        scrollX = FALSE,
-        searching = FALSE,
-        ordering = FALSE,
-        pageLength = 5,
-        lengthChange = FALSE,
-        bInfo = FALSE
-      )
-    ) %>% 
-      formatStyle(
-        "省份",
-        target = "row",
-        # color = styleEqual("Total", options()$table.color),
-        fontWeight = styleEqual("Total", "bold")
-      ) %>% 
-      formatStyle(
-        "省份",
-        color = options()$table.color,
-        fontWeight = "bold"
-      ) %>% 
-      formatRound(
-        columns = TRUE,
-        digits = 2
-        # interval = 3,
-        # mark = ","
-      )
-  })
+  # ProvTable2 <- eventReactive(input$go, {
+  #   if (is.null(ProvData()) | is.null(input$kpi2))
+  #     return(NULL)
+  #   if (nrow(ProvData()) == 0)
+  #     return(NULL)
+  #   
+  #   plot.data <- ProvData()
+  #   plot.data <- plot.data[c("province",
+  #                            paste0("covered_", input$kpi2),
+  #                            paste0("uncovered_", input$kpi2),
+  #                            paste0("total_", input$kpi2))]
+  #   colnames(plot.data) <- c("index", "Covered", "Uncovered", "Total")
+  #   
+  #   ordering <- arrange(plot.data, -`Total`)$index
+  #   plot.data <- melt(plot.data, id.vars = "index", variable.name = "省份") %>% 
+  #     dcast(`省份`~index, value.var = "value") %>% 
+  #     select("省份", ordering)
+  #   
+  #   plot.data
+  # })
+  # 
+  # output$IndexTable <- DT::renderDataTable({
+  #   if (is.null(ProvTable2()))
+  #     return(NULL)
+  #   
+  #   DT::datatable(
+  #     ProvTable2(),
+  #     rownames = FALSE,
+  #     # extensions = c('FixedColumns', 'Buttons'),
+  #     #filter = 'bottom',
+  #     ##### this sentence need to be changed when new variables added
+  #     options = list(
+  #       # dom = '<"bottom">Bfrtpl',
+  #       # buttons = I('colvis'),
+  #       columnDefs = list(
+  #         list(
+  #           className = 'dt-center',
+  #           targets = '_all'
+  #         )
+  #       ),
+  #       initComplete = JS(
+  #         "function(settings, json) {",
+  #         "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
+  #         "}"
+  #       ),
+  #       paging = FALSE,
+  #       scrollX = FALSE,
+  #       searching = FALSE,
+  #       ordering = FALSE,
+  #       pageLength = 5,
+  #       lengthChange = FALSE,
+  #       bInfo = FALSE
+  #     )
+  #   ) %>% 
+  #     formatStyle(
+  #       "省份",
+  #       target = "row",
+  #       # color = styleEqual("Total", options()$table.color),
+  #       fontWeight = styleEqual("Total", "bold")
+  #     ) %>% 
+  #     formatStyle(
+  #       "省份",
+  #       color = options()$table.color,
+  #       fontWeight = "bold"
+  #     ) %>% 
+  #     formatRound(
+  #       columns = TRUE,
+  #       digits = 2
+  #       # interval = 3,
+  #       # mark = ","
+  #     )
+  # })
   
   ## recommendation calculation data ----
   CalcDataRcmd <- reactive({
