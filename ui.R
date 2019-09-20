@@ -73,6 +73,7 @@ ui <- dashboardPage(
   dashboardBody(
     useShinyjs(),
     
+    br(),
     tabsetPanel(
       tabPanel(
         strong("Selection"),
@@ -86,7 +87,7 @@ ui <- dashboardPage(
             solidHeader = TRUE,
             collapsible = FALSE,
             width = 5,
-            tags$div(plotlyOutput("Conc", height = "604px"))
+            tags$div(plotlyOutput("Conc", height = "638px"))
           ),
           
           box(
@@ -98,17 +99,17 @@ ui <- dashboardPage(
             column(
               1,
               tags$div(strong(textOutput("seg.h1")),
-                       style = "text-align:center; margin-top:165px;",
+                       style = "text-align:center; margin-top:200px;",
                        class = "text-vertical"),
               tags$div(strong(textOutput("seg.h2")),
-                       style = "text-align:center; margin-top:265px;",
+                       style = "text-align:center; margin-top:260px;",
                        class = "text-vertical")
             ),
             column(
               11,
               fluidRow(
-                conditionalPanel("output.TableA == null",
-                                 br()),
+                tags$div(downloadButton("DownloadSeg", label = "Download", style = "width:100px; color:#000;"),
+                         style = "text-align:right;"),
                 tags$div(strong(textOutput("seg.v")),
                          style = "text-align:center;")
               ),
@@ -165,9 +166,12 @@ ui <- dashboardPage(
             collapsible = FALSE,
             width = 12,
             fluidRow(
-              column(6, tags$div(plotlyOutput("ActualPlot1"))),
               column(6,
-                     tags$div(selectInput("actual", label = "Selection SKU", choices = "", multiple = TRUE)),
+                     br(),
+                     br(),
+                     tags$div(plotlyOutput("ActualPlot1", height = "auto"))),
+              column(6,
+                     tags$div(selectInput("actual.sku", label = "Selection SKU", choices = "", multiple = TRUE)),
                      tags$div(plotlyOutput("ActualPlot2")))
             )
           )
@@ -194,12 +198,17 @@ ui <- dashboardPage(
                   #                       selected = "All", multiple = TRUE)),
                   column(3, selectInput("kpi1", label = "KPI", 
                                         choices = c("Hospital#" = "hospital_num", "City#" = "city_num", "FTE#" = "fte"), 
-                                        selected = "Hospital#", multiple = FALSE))
+                                        selected = "Hospital#", multiple = FALSE)),
+                  column(1),
+                  column(2,
+                         br(),
+                         tags$div(downloadButton(outputId = "DownloadProv", label = "Download", style = "width:100px; color:#000;"),
+                                  style = "display:inline-block; width:100%; text-align:center;"))
                 ),
                 style = "background:#C8E6FF;"
               )
             ),
-            br(),
+            # br(),
             fluidRow(
               box(
                 solidHeader = TRUE,
@@ -212,6 +221,23 @@ ui <- dashboardPage(
               )
             ),
             br(),
+            fluidRow(
+              box(
+                solidHeader = TRUE,
+                collapsible = FALSE,
+                width = 12,
+                tags$div(
+                  column(3, selectInput("covered.sku", label = "Selection SKU", choices = "", multiple = TRUE)),
+                  column(7),
+                  column(2,
+                         br(),
+                         tags$div(downloadButton(outputId = "DownloadHospital", label = "Download", style = "width:100px; color:#000;"),
+                                  style = "display:inline-block; width:100%; text-align:center;"))
+                ),
+                style = "background:#C8E6FF;"
+              )
+            ),
+            # br(),
             fluidRow(
               box(
                 solidHeader = TRUE,
@@ -427,6 +453,40 @@ ui <- dashboardPage(
           )
         )
         
+      ),
+      
+      tabPanel(
+        strong("Dimension"),
+        value = "3",
+        
+        br(),
+        fluidRow(
+          box(
+            solidHeader = TRUE,
+            collapsible = FALSE,
+            width = 12,
+            tags$div(
+              column(6, selectInput("dimension", label = "Dimension", 
+                                    choices = c("Province" = "province", "City" = "city", "City tier" = "tier", "Hospital level" = "hosp_level"),
+                                    selected = c("province", "city", "tier", "hosp_level"), multiple = TRUE)),
+              column(4),
+              column(2, br(), 
+                     tags$div(downloadButton("DownloadDimension", label = "Download", style = "width:100px; color:#000;"),
+                              style = "display:inline-block; width:100%; text-align:center;"))
+            ),
+            style = "background:#C8E6FF;"
+          ),
+          
+          br(),
+          box(
+            solidHeader = TRUE,
+            collapsible = FALSE,
+            width = 12,
+            tags$div(DT::dataTableOutput("DimensionTable"),
+                     style = "font-size:90%; overflow-x:scroll;",
+                     class = "nowrap")
+          )
+        )
       )
     )
   )
