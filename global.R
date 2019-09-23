@@ -36,4 +36,25 @@ options(shiny.maxRequestSize = 1000 * 1024 ^ 2,
         covered.line.color = "#FFC0CB",
         total.line.color = "#DC143C",
         num.color = "#4472C4",
-        share.color = "#DC143C")
+        share.color = "#DC143C",
+        evaluation.color = "#C8E6FF")
+
+## save scenario ----
+scenario1 <- list(kPotnCtrb = 0,
+                  aban = NULL,
+                  productivity = 0,
+                  growth = -Inf)
+
+scenario2 <- list(kPotnCtrb = 0,
+                  aban = NULL,
+                  productivity = 0,
+                  growth = -Inf)
+
+# setScenario <- function(scenario, pname, pval) {
+#         idx <- which(scenario$input == pname)
+# 
+#         if (length(idx) == 1){
+#                 print(pval)
+#                 scenario[["pname"]] <<- pval
+#         }
+# }
