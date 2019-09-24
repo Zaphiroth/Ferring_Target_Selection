@@ -23,7 +23,6 @@ library(leaflet)
 library(leafletCN)
 library(shinyWidgets)
 library(readr)
-library(OneR)
 
 options(shiny.maxRequestSize = 1000 * 1024 ^ 2,
         seg.color = "#FFFFF0",
@@ -35,7 +34,6 @@ options(shiny.maxRequestSize = 1000 * 1024 ^ 2,
         uncovered.color = "#0000CD",
         covered.line.color = "#FFC0CB",
         total.line.color = "#DC143C",
-        num.color = "#4472C4",
         share.color = "#DC143C",
         evaluation.color = "#C8E6FF")
 
@@ -49,12 +47,3 @@ scenario2 <- list(kPotnCtrb = 0,
                   aban = NULL,
                   productivity = 0,
                   growth = -Inf)
-
-# setScenario <- function(scenario, pname, pval) {
-#         idx <- which(scenario$input == pname)
-# 
-#         if (length(idx) == 1){
-#                 print(pval)
-#                 scenario[["pname"]] <<- pval
-#         }
-# }

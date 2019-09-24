@@ -188,7 +188,7 @@ ui <- dashboardPage(
                 collapsible = FALSE,
                 width = 12,
                 tags$div(
-                  column(3, numericInput("productivity", label = "Productivity lowest limit by year", value = NULL, min = 0)),
+                  column(3, numericInput("productivity", label = "Productivity lowest limit by year", value = NULL)),
                   # column(3, numericInput("roi", label = "ROI lowest limit by year (%)", value = 0, min = 0)),
                   column(3, numericInput("growth", label = "Growth rate lowest limit by year (%)", value = NULL)),
                   # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
