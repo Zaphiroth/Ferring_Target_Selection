@@ -321,9 +321,15 @@ ui <- dashboardPage(
             width = 7,
             column(
               1,
-              tags$div(strong(textOutput("segRcmd.h")),
-                       style = "text-align:center; margin-top:300px;",
+              tags$div(strong(textOutput("segRcmd.h1")),
+                       style = "text-align:center; margin-top:200px;",
+                       class = "text-vertical"),
+              tags$div(strong(textOutput("segRcmd.h2")),
+                       style = "text-align:center; margin-top:260px;",
                        class = "text-vertical")
+              # tags$div(strong(textOutput("segRcmd.h")),
+              #          style = "text-align:center; margin-top:300px;",
+              #          class = "text-vertical")
             ),
             column(
               11,
@@ -464,8 +470,8 @@ ui <- dashboardPage(
             width = 12,
             tags$div(
               column(6, selectInput("dimension", label = "Dimension", 
-                                    choices = c("Province" = "province", "City" = "city", "City tier" = "tier", "Hospital level" = "hosp_level"),
-                                    selected = c("province", "city", "tier", "hosp_level"), multiple = TRUE)),
+                                    choices = c("SKU" = "sku", "Province" = "province", "City" = "city", "City tier" = "tier", "Hospital level" = "hosp_level"),
+                                    selected = c("sku", "province", "city", "tier", "hosp_level"), multiple = TRUE)),
               column(4),
               column(2, br(), 
                      tags$div(downloadButton("DownloadDimension", label = "Download", style = "width:100px; color:#000;"),

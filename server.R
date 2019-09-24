@@ -95,9 +95,8 @@ server <- function(input, output, session) {
     isolate({
       if (is.null(raw()) | is.null(input$sku))
         return(NULL)
-      raw <- raw()
       
-      cum <- raw %>% 
+      cum <- raw() %>% 
         distinct() %>% 
         filter(sku %in% input$sku) %>% 
         mutate(freq = ifelse(sku == "Gly",
@@ -123,7 +122,10 @@ server <- function(input, output, session) {
                                      0,
                                      productivity),
                roi = (target - cost) / cost,
-               growth = potential1 / potential0 - 1)
+               growth = potential1 / potential0 - 1,
+               growth = ifelse(is.na(growth),
+                               0,
+                               growth))
       
       cum1 <- cum %>% 
         filter(flag == 1)
@@ -236,8 +238,9 @@ server <- function(input, output, session) {
       kProp <- input$kPotnCtrb
     }
     
-    seg.data <- bind_rows(CalcData()$data1, CalcData()$data2) %>% 
+    seg.data <- CalcData()$data2 %>% 
       filter(!(province %in% input$aban)) %>% 
+      bind_rows(CalcData()$data2) %>% 
       mutate(market_share = target / potential0,
              market_share = ifelse(is.na(market_share),
                                    0,
@@ -1087,7 +1090,10 @@ server <- function(input, output, session) {
                                      0,
                                      productivity),
                # roi = (target - cost) / cost,
-               growth = potential1 / potential0 - 1)
+               growth = potential1 / potential0 - 1,
+               growth = ifelse(is.na(growth),
+                               0,
+                               growth))
       
       cum1 <- cum %>% 
         filter(flag == 1)
@@ -1359,7 +1365,11 @@ server <- function(input, output, session) {
       mark <- rownames(total.data)[length(rownames(total.data))]
     }
     
-    list("total.data" = total.data,
+    cum1 <- filter(total.data, flag == 1)
+    cum2 <- filter(total.data, flag == 0)
+    
+    list("data1" = cum1,
+         "data2" = cum2,
          "mark" = mark)
   })
   
@@ -1368,7 +1378,7 @@ server <- function(input, output, session) {
     if (is.null(CalcDataRcmd()))
       return(NULL)
     
-    plot.data <- CalcDataRcmd()$total.data
+    plot.data <- bind_rows(CalcDataRcmd()$data1, CalcDataRcmd()$data2)
     x.mark <- round(as.numeric(CalcDataRcmd()$mark))
     y.mark <- ifelse(x.mark == "0", 0, plot.data$potential0_cumctrb[which(rownames(plot.data) == as.character(x.mark))])
     
@@ -1439,11 +1449,14 @@ server <- function(input, output, session) {
     if (is.null(CalcDataRcmd()))
       return(NULL)
     
-    seg.data <- CalcDataRcmd()$total.data %>% 
-      filter(!(province %in% input$aban))
+    seg.data <- CalcDataRcmd()$data2 %>% 
+      filter(!(province %in% input$aban)) %>% 
+      bind_rows(CalcDataRcmd()$data1)
+    
+    total.data <- bind_rows(CalcDataRcmd()$data1, CalcDataRcmd()$data2)
     
     kRow <- as.numeric(CalcDataRcmd()$mark)
-    kProp <- round(CalcDataRcmd()$total.data$potential0_cumctrb[which(rownames(CalcDataRcmd()$total.data) == as.character(kRow))], 2)
+    kProp <- round(total.data$potential0_cumctrb[which(rownames(total.data) == as.character(kRow))], 2)
     kGrMean <- sum(seg.data$potential1, na.rm = TRUE) / sum(seg.data$potential0, na.rm = TRUE) - 1
     
     seg.a <- seg.data %>% 
@@ -1563,18 +1576,28 @@ server <- function(input, output, session) {
     seg.list
   })
   
-  output$segRcmd.h <- renderText({
-    if (is.null(SegDataRcmd()))
-      return("Growth Rate = 0")
-    
-    paste0("Growth Rate = ", format(SegDataRcmd()$kGrMean, digits = 2L))
+  output$segRcmd.v <- renderText({
+    if (is.null(SegDataRcmd())) {
+      "Potential Cumulation Contribution = NA%"
+    } else {
+      paste0("Potential Cumulation Contribution = ", SegDataRcmd()$kProp, "%")
+    }
   })
   
-  output$segRcmd.v <- renderText({
-    if (is.null(SegDataRcmd()))
-      return("Potential Cumulation Contribution = 0%")
-    
-    paste0("Potential Cumulation Contribution = ", SegDataRcmd()$kProp, "%")
+  output$segRcmd.h1 <- renderText({
+    if (is.null(SegDataRcmd())) {
+      "Growth Rate >= NA%"
+    } else {
+      paste0("Growth Rate >= ", format(SegDataRcmd()$kGrMean, digits = 2L))
+    }
+  })
+  
+  output$segRcmd.h2 <- renderText({
+    if (is.null(SegDataRcmd())) {
+      "Growth Rate < NA%"
+    } else {
+      paste0("Growth Rate < ", format(SegDataRcmd()$kGrMean, digits = 2L))
+    }
   })
   
   output$TableARcmd <- DT::renderDataTable({
@@ -1718,9 +1741,10 @@ server <- function(input, output, session) {
     if (is.null(CalcDataRcmd()))
       return(NULL)
     
-    covered.data <- CalcDataRcmd()$total.data %>% 
+    covered.data <- CalcDataRcmd()$data2 %>% 
       filter(row_number() <= as.numeric(CalcDataRcmd()$mark),
-             !(province %in% input$aban))
+             !(province %in% input$aban)) %>% 
+      bind_rows(CalcDataRcmd()$data1)
     
     covered.prov.data <- covered.data %>% 
       group_by(province) %>% 
@@ -1996,7 +2020,38 @@ server <- function(input, output, session) {
       kProp <- input$kPotnCtrb
     }
     
-    total.data <- CalcData()$data2 %>% 
+    total.data.m <- raw() %>% 
+      distinct() %>% 
+      filter(sku %in% input$sku) %>% 
+      mutate(freq = ifelse(sku == "Gly",
+                           doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
+                           ifelse(sku == "Pentasa SUP",
+                                  doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                  ifelse(sku == "Pentasa TAB",
+                                         doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                         0)))) %>% 
+      group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
+      summarise(freq = sum(freq, na.rm = TRUE),
+                potential0 = sum(potential0, na.rm = TRUE),
+                potential1 = sum(potential1, na.rm = TRUE),
+                target = sum(target, na.rm = TRUE)) %>% 
+      ungroup() %>% 
+      arrange(-potential0) %>% 
+      mutate(potential0_cumsum = cumsum(potential0),
+             potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
+             fte = freq / 8 * 12 / 185,
+             cost = fte * 70000,
+             productivity = target / fte,
+             productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
+                                   0,
+                                   productivity),
+             roi = (target - cost) / cost,
+             growth = potential1 / potential0 - 1,
+             growth = ifelse(is.na(growth),
+                             0,
+                             growth))
+    
+    total.data <- filter(total.data.m, flag == 0) %>% 
       filter(potential0_cumctrb <= kProp,
              !(province %in% input$aban))
     
@@ -2013,7 +2068,7 @@ server <- function(input, output, session) {
     }
     
     table.data <- covered.data %>% 
-      bind_rows(CalcData()$data1) %>% 
+      bind_rows(filter(total.data.m, flag == 1)) %>% 
       group_by_at(vars(one_of(c(input$dimension, "hospital")))) %>% 
       summarise(fte = sum(fte, na.rm = TRUE),
                 cost = sum(cost, na.rm = TRUE),
@@ -2034,8 +2089,8 @@ server <- function(input, output, session) {
              "FTE" = "fte", 
              "ROI" = "roi")
     
-    name.mapping <- data.frame(name0 = c("province", "city", "tier", "hosp_level"),
-                               name1 = c("Province", "City", "City tier", "Hospital level"),
+    name.mapping <- data.frame(name0 = c("sku", "province", "city", "tier", "hosp_level"),
+                               name1 = c("SKU", "Province", "City", "City tier", "Hospital level"),
                                stringsAsFactors = FALSE)
     
     for (i in input$dimension) {
@@ -2076,7 +2131,7 @@ server <- function(input, output, session) {
         scrollX = FALSE,
         searching = FALSE,
         ordering = FALSE,
-        pageLength = 10,
+        pageLength = 30,
         lengthChange = FALSE,
         bInfo = FALSE
       )
@@ -2133,8 +2188,10 @@ server <- function(input, output, session) {
     
     mark <- rownames(maxx)[which(abs(maxx$roi_cumsum) == min(abs(maxx$roi_cumsum)))]
     
-    maxx <- filter(maxx, row_number() <= mark) %>% 
-      filter(!(province %in% input$aban))
+    maxx <- CalcData()$data2 %>% 
+      filter(row_number() <= mark,
+             !(province %in% input$aban)) %>% 
+      bind_rows(CalcData()$data1)
     
     max_aggr <- maxx %>% 
       group_by(city) %>% 
@@ -2218,11 +2275,12 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
-    scenario <- bind_rows(CalcData()$data1, CalcData()$data2) %>% 
+    scenario <- CalcData()$data2 %>% 
       filter(productivity >= scenario1$productivity,
              growth >= scenario1$growth) %>% 
       filter(potential0_cumctrb <= scenario1$kPotnCtrb,
              !(province %in% scenario1$aban)) %>% 
+      bind_rows(CalcData()$data1) %>% 
       mutate(market_share = target / potential0,
              market_share = ifelse(is.na(market_share),
                                    0,
@@ -2241,7 +2299,13 @@ server <- function(input, output, session) {
                 fte = sum(fte, na.rm = TRUE),
                 cost = sum(cost, na.rm = TRUE)) %>% 
       mutate(productivity = target / fte,
-             roi = (target - cost) / cost) %>% 
+             productivity = ifelse(is.na(productivity),
+                                   0,
+                                   productivity),
+             roi = (target - cost) / cost,
+             roi = ifelse(is.na(roi),
+                          0,
+                          roi)) %>% 
       select("Hospital#" = "hosp_num",
              "City#" = "city_num",
              "FTE" = "fte",
@@ -2260,11 +2324,12 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
-    scenario <- bind_rows(CalcData()$data1, CalcData()$data2) %>% 
+    scenario <- CalcData()$data2 %>% 
       filter(productivity >= scenario2$productivity,
              growth >= scenario2$growth) %>% 
       filter(potential0_cumctrb <= scenario2$kPotnCtrb,
              !(province %in% scenario2$aban)) %>% 
+      bind_rows(CalcData()$data1) %>% 
       mutate(market_share = target / potential0,
              market_share = ifelse(is.na(market_share),
                                    0,
@@ -2283,7 +2348,13 @@ server <- function(input, output, session) {
                 fte = sum(fte, na.rm = TRUE),
                 cost = sum(cost, na.rm = TRUE)) %>% 
       mutate(productivity = target / fte,
-             roi = (target - cost) / cost) %>% 
+             productivity = ifelse(is.na(productivity),
+                                   0,
+                                   productivity),
+             roi = (target - cost) / cost,
+             roi = ifelse(is.na(roi),
+                          0,
+                          roi)) %>% 
       select("Hospital#" = "hosp_num",
              "City#" = "city_num",
              "FTE" = "fte",
@@ -2385,9 +2456,91 @@ server <- function(input, output, session) {
     },
     
     content = function(file) {
-      total.data <- SegData()$total
+      if (is.na(input$kPotnCtrb)) {
+        kProp <- 0
+      } else {
+        kProp <- input$kPotnCtrb
+      }
       
-      write.csv(total.data, file, row.names = FALSE, fileEncoding = "GB2312")
+      seg.data <- raw() %>% 
+        distinct() %>% 
+        filter(sku %in% input$sku) %>% 
+        mutate(freq = ifelse(sku == "Gly",
+                             doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
+                             ifelse(sku == "Pentasa SUP",
+                                    doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                    ifelse(sku == "Pentasa TAB",
+                                           doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                           0)))) %>% 
+        group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
+        summarise(freq = sum(freq, na.rm = TRUE),
+                  potential0 = sum(potential0, na.rm = TRUE),
+                  potential1 = sum(potential1, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        arrange(-potential0) %>% 
+        mutate(potential0_cumsum = cumsum(potential0),
+               potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
+               fte = freq / 8 * 12 / 185,
+               cost = fte * 70000,
+               productivity = target / fte,
+               productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
+                                     0,
+                                     productivity),
+               roi = (target - cost) / cost,
+               growth = potential1 / potential0 - 1,
+               growth = ifelse(is.na(growth),
+                               0,
+                               growth))
+      
+      seg.data.m <- seg.data %>% 
+        filter(flag == 0) %>% 
+        filter(!(province %in% input$aban)) %>% 
+        bind_rows(filter(seg.data, flag == 1)) %>% 
+        mutate(market_share = target / potential0,
+               market_share = ifelse(is.na(market_share),
+                                     0,
+                                     market_share))
+      
+      if (input$growth_share == "Growth Rate") {
+        if (is.na(input$kGrowth)) {
+          kIndex <- -Inf
+        } else {
+          kIndex <- input$kGrowth/100
+        }
+        
+        seg.total <- seg.data %>% 
+          mutate(segment = ifelse(potential0_cumctrb <= kProp & growth >= kIndex,
+                                  "A",
+                                  ifelse(potential0_cumctrb <= kProp & growth < kIndex,
+                                         "B",
+                                         ifelse(potential0_cumctrb > kProp & growth >= kIndex,
+                                                "C",
+                                                ifelse(potential0_cumctrb > kProp & growth < kIndex,
+                                                       "D",
+                                                       "0")))))
+        
+      } else if (input$growth_share == "Market Share") {
+        if (is.na(input$kShare)) {
+          kIndex <- 0
+        } else {
+          kIndex <- input$kShare/100
+        }
+        
+        seg.total <- seg.data %>% 
+          mutate(segment = ifelse(potential0_cumctrb <= kProp & market_share >= kIndex,
+                                  "A",
+                                  ifelse(potential0_cumctrb <= kProp & market_share < kIndex,
+                                         "B",
+                                         ifelse(potential0_cumctrb > kProp & market_share >= kIndex,
+                                                "C",
+                                                ifelse(potential0_cumctrb > kProp & market_share < kIndex,
+                                                       "D",
+                                                       "0")))))
+        
+      }
+      
+      write.csv(seg.total, file, row.names = FALSE, fileEncoding = "GB2312")
     }
   )
   
@@ -2397,9 +2550,132 @@ server <- function(input, output, session) {
     },
     
     content = function(file) {
-      total.data <- ProvData()
+      if (is.na(input$kPotnCtrb)) {
+        kProp <- 0
+      } else {
+        kProp <- input$kPotnCtrb
+      }
       
-      write.csv(total.data, file, row.names = FALSE, fileEncoding = "GB2312")
+      total.data <- raw() %>% 
+        distinct() %>% 
+        filter(sku %in% input$sku) %>% 
+        mutate(freq = ifelse(sku == "Gly",
+                             doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
+                             ifelse(sku == "Pentasa SUP",
+                                    doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                    ifelse(sku == "Pentasa TAB",
+                                           doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                           0)))) %>% 
+        group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
+        summarise(freq = sum(freq, na.rm = TRUE),
+                  potential0 = sum(potential0, na.rm = TRUE),
+                  potential1 = sum(potential1, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        arrange(-potential0) %>% 
+        mutate(potential0_cumsum = cumsum(potential0),
+               potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
+               fte = freq / 8 * 12 / 185,
+               cost = fte * 70000,
+               productivity = target / fte,
+               productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
+                                     0,
+                                     productivity),
+               roi = (target - cost) / cost,
+               growth = potential1 / potential0 - 1,
+               growth = ifelse(is.na(growth),
+                               0,
+                               growth))
+      
+      total.data.m <- total.data %>% 
+        filter(flag == 0) %>% 
+        filter(!(province %in% input$aban),
+               potential0_cumctrb <= kProp) %>% 
+        bind_rows(filter(total.data, flag == 1))
+      
+      if (is.na(input$productivity)) {
+        covered.data <- total.data.m
+      } else {
+        covered.data <- total.data.m[which(total.data.m$productivity >= input$productivity), ]
+      }
+      
+      if (is.na(input$growth)) {
+        covered.data <- covered.data
+      } else {
+        covered.data <- covered.data[which(covered.data$growth >= input$growth/100), ]
+      }
+      
+      actual.prov.data <- covered.data %>% 
+        filter(is == "Y") %>% 
+        group_by(sku, province) %>% 
+        summarise(actual_hospital_num = n(),
+                  actual_city_num = length(sort(unique(city))),
+                  actual_freq = sum(freq, na.rm = TRUE),
+                  actual_potential0 = sum(potential0, na.rm = TRUE),
+                  actual_potential1 = sum(potential1, na.rm = TRUE),
+                  actual_target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(actual_fte = actual_freq / 8 * 12 / 185,
+               actual_cost = actual_fte * 70000,
+               actual_productivity = actual_target / actual_fte,
+               actual_productivity = ifelse(is.na(actual_productivity) | is.nan(actual_productivity) | is.infinite(actual_productivity),
+                                            0,
+                                            actual_productivity),
+               actual_roi = (actual_target - actual_cost) / actual_cost)
+      
+      covered.prov.data <- covered.data %>% 
+        group_by(sku, province) %>% 
+        summarise(covered_hospital_num = n(),
+                  covered_city_num = length(sort(unique(city))),
+                  covered_freq = sum(freq, na.rm = TRUE),
+                  covered_potential0 = sum(potential0, na.rm = TRUE),
+                  covered_potential1 = sum(potential1, na.rm = TRUE),
+                  covered_target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(covered_fte = covered_freq / 8 * 12 / 185,
+               covered_cost = covered_fte * 70000,
+               covered_productivity = covered_target / covered_fte,
+               covered_productivity = ifelse(is.na(covered_productivity) | is.nan(covered_productivity) | is.infinite(covered_productivity),
+                                             0,
+                                             covered_productivity),
+               covered_roi = (covered_target - covered_cost) / covered_cost)
+      
+      total.prov.data <- total.data %>% 
+        group_by(sku, province) %>% 
+        summarise(total_hospital_num = n(),
+                  total_city_num = length(sort(unique(city))),
+                  total_freq = sum(freq, na.rm = TRUE),
+                  total_potential0 = sum(potential0, na.rm = TRUE),
+                  total_potential1 = sum(potential1, na.rm = TRUE),
+                  total_target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(total_fte = total_freq / 8 * 12 / 185,
+               total_cost = total_fte * 70000,
+               total_productivity = total_target / total_fte,
+               total_productivity = ifelse(is.na(total_productivity) | is.nan(total_productivity) | is.infinite(total_productivity),
+                                           0,
+                                           total_productivity),
+               total_roi = (total_target - total_cost) / total_cost)
+      
+      prov.data <- total.prov.data %>% 
+        left_join(actual.prov.data, by  = c("sku", "province")) %>% 
+        left_join(covered.prov.data, by = c("sku", "province")) %>% 
+        mutate_all(function(x) {ifelse(is.na(x), 0, x)}) %>% 
+        mutate(uncovered_hospital_num = total_hospital_num - covered_hospital_num,
+               uncovered_city_num = total_city_num - covered_city_num,
+               uncovered_freq = total_freq - covered_freq,
+               uncovered_potential0 = total_potential0 - covered_potential0,
+               uncovered_potential1 = total_potential1 - covered_potential1,
+               uncovered_target = total_target - covered_target,
+               uncovered_fte = uncovered_freq / 8 * 12 / 185,
+               uncovered_cost = uncovered_fte * 70000,
+               uncovered_productivity = uncovered_target / uncovered_fte,
+               uncovered_productivity = ifelse(is.na(uncovered_productivity) | is.nan(uncovered_productivity) | is.infinite(uncovered_productivity),
+                                               0,
+                                               uncovered_productivity),
+               uncovered_roi = (uncovered_target - uncovered_cost) / uncovered_cost)
+      
+      write.csv(prov.data, file, row.names = FALSE, fileEncoding = "GB2312")
     }
   )
   
@@ -2409,9 +2685,79 @@ server <- function(input, output, session) {
     },
     
     content = function(file) {
-      total.data <- SharePlot()$plot.data
+      if (is.na(input$kPotnCtrb)) {
+        kProp <- 0
+      } else {
+        kProp <- input$kPotnCtrb
+      }
       
-      write.csv(total.data, file, row.names = FALSE, fileEncoding = "GB2312")
+      total.data <- raw() %>% 
+        distinct() %>% 
+        filter(sku %in% input$covered.sku) %>% 
+        mutate(freq = ifelse(sku == "Gly",
+                             doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
+                             ifelse(sku == "Pentasa SUP",
+                                    doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                    ifelse(sku == "Pentasa TAB",
+                                           doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                           0)))) %>%
+        group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
+        summarise(freq = sum(freq, na.rm = TRUE),
+                  potential0 = sum(potential0, na.rm = TRUE),
+                  potential1 = sum(potential1, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        arrange(-potential0) %>%
+        mutate(potential0_cumsum = cumsum(potential0),
+               potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
+               fte = freq / 8 * 12 / 185,
+               cost = fte * 70000,
+               productivity = target / fte,
+               productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
+                                     0,
+                                     productivity),
+               # roi = (target - cost) / cost,
+               growth = potential1 / potential0 - 1,
+               growth = ifelse(is.na(growth),
+                               0,
+                               growth))
+      
+      total.data.m <- total.data %>% 
+        filter(flag == 0) %>% 
+        filter(!(province %in% input$aban),
+               potential0_cumctrb <= kProp) %>% 
+        bind_rows(filter(total.data, flag == 1))
+      
+      if (is.na(input$productivity)) {
+        total.data.m <- total.data.m
+      } else {
+        total.data.m <- total.data.m[which(total.data.m$productivity >= input$productivity), ]
+      }
+      
+      if (is.na(input$growth)) {
+        total.data.m <- total.data.m
+      } else {
+        total.data.m <- total.data.m[which(total.data.m$growth >= input$growth/100), ]
+      }
+      
+      total.data.m <- total.data.m %>% 
+        group_by(sku, hospital, decile) %>% 
+        summarise(potential0 = sum(potential0, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        group_by(sku, decile) %>% 
+        summarise(potential0 = sum(potential0, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE),
+                  hosp_num = n()) %>% 
+        ungroup() %>% 
+        mutate(market_share = target / potential0,
+               market_share = ifelse(is.na(market_share),
+                                     0,
+                                     market_share),
+               decile = factor(decile, levels = c("D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10"))) %>% 
+        arrange(decile)
+      
+      write.csv(total.data.m, file, row.names = FALSE, fileEncoding = "GB2312")
     }
   )
   
@@ -2427,12 +2773,44 @@ server <- function(input, output, session) {
         kProp <- input$kPotnCtrb
       }
       
-      total.data <- CalcData()$data2 %>% 
-        filter(potential0_cumctrb <= kProp,
-               !(province %in% input$aban)) %>% 
-        bind_rows(CalcData()$data1)
+      total.data <- raw() %>% 
+        distinct() %>% 
+        filter(sku %in% input$covered.sku) %>% 
+        mutate(freq = ifelse(sku == "Gly",
+                             doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
+                             ifelse(sku == "Pentasa SUP",
+                                    doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                    ifelse(sku == "Pentasa TAB",
+                                           doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                           0)))) %>%
+        group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
+        summarise(freq = sum(freq, na.rm = TRUE),
+                  potential0 = sum(potential0, na.rm = TRUE),
+                  potential1 = sum(potential1, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        arrange(-potential0) %>%
+        mutate(potential0_cumsum = cumsum(potential0),
+               potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
+               fte = freq / 8 * 12 / 185,
+               cost = fte * 70000,
+               productivity = target / fte,
+               productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
+                                     0,
+                                     productivity),
+               # roi = (target - cost) / cost,
+               growth = potential1 / potential0 - 1,
+               growth = ifelse(is.na(growth),
+                               0,
+                               growth))
       
-      write.csv(total.data, file, row.names = FALSE, fileEncoding = "GB2312")
+      total.data.m <- total.data %>% 
+        filter(flag == 0) %>% 
+        filter(!(province %in% input$aban),
+               potential0_cumctrb <= kProp) %>% 
+        bind_rows(filter(total.data, flag == 1))
+      
+      write.csv(total.data.m, file, row.names = FALSE, fileEncoding = "GB2312")
     }
   )
   
@@ -2442,9 +2820,43 @@ server <- function(input, output, session) {
     },
     
     content = function(file) {
-      total.data <- CalcDataRcmd()$total.data %>% 
-        filter(row_number() < as.numeric(CalcDataRcmd()$mark)) %>% 
-        select(-target_cumsum, -cost_cumsum, -fte_cumsum, -roi_cumsum)
+      total.data <- raw() %>% 
+        distinct() %>% 
+        filter(sku %in% input$covered.sku) %>% 
+        mutate(freq = ifelse(sku == "Gly",
+                             doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
+                             ifelse(sku == "Pentasa SUP",
+                                    doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                    ifelse(sku == "Pentasa TAB",
+                                           doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                           0)))) %>%
+        group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
+        summarise(freq = sum(freq, na.rm = TRUE),
+                  potential0 = sum(potential0, na.rm = TRUE),
+                  potential1 = sum(potential1, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        arrange(-potential0) %>%
+        mutate(potential0_cumsum = cumsum(potential0),
+               potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
+               fte = freq / 8 * 12 / 185,
+               cost = fte * 70000,
+               productivity = target / fte,
+               productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
+                                     0,
+                                     productivity),
+               # roi = (target - cost) / cost,
+               growth = potential1 / potential0 - 1,
+               growth = ifelse(is.na(growth),
+                               0,
+                               growth)) %>% 
+        arrange(potential0_cumctrb)
+      
+      total.data.m <- total.data %>% 
+        filter(flag == 0) %>% 
+        filter(row_number() > as.numeric(CalcDataRcmd()$mark)) %>% 
+        filter(!(province %in% input$aban)) %>% 
+        bind_rows(filter(total.data, flag == 1))
       
       write.csv(total.data, file, row.names = FALSE, fileEncoding = "GB2312")
     }
@@ -2468,16 +2880,147 @@ server <- function(input, output, session) {
     },
     
     content = function(file) {
+      total.data1 <- raw() %>% 
+        distinct() %>% 
+        filter(sku %in% input$covered.sku) %>% 
+        mutate(freq = ifelse(sku == "Gly",
+                             doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
+                             ifelse(sku == "Pentasa SUP",
+                                    doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                    ifelse(sku == "Pentasa TAB",
+                                           doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                           0)))) %>%
+        group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
+        summarise(freq = sum(freq, na.rm = TRUE),
+                  potential0 = sum(potential0, na.rm = TRUE),
+                  potential1 = sum(potential1, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        arrange(-potential0) %>%
+        mutate(potential0_cumsum = cumsum(potential0),
+               potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
+               fte = freq / 8 * 12 / 185,
+               cost = fte * 70000,
+               productivity = target / fte,
+               productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
+                                     0,
+                                     productivity),
+               # roi = (target - cost) / cost,
+               growth = potential1 / potential0 - 1,
+               growth = ifelse(is.na(growth),
+                               0,
+                               growth))
+      
+      total.data1.m <- total.data1 %>% 
+        filter(flag == 0) %>% 
+        filter(!(province %in% input$aban)) %>% 
+        filter(is == "Y") %>% 
+        bind_rows(filter(total.data1, flag == 1))
+      
+      total.data2 <- raw() %>% 
+        distinct() %>% 
+        filter(sku %in% input$covered.sku) %>% 
+        mutate(freq = ifelse(sku == "Gly",
+                             doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
+                             ifelse(sku == "Pentasa SUP",
+                                    doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                    ifelse(sku == "Pentasa TAB",
+                                           doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                           0)))) %>%
+        group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
+        summarise(freq = sum(freq, na.rm = TRUE),
+                  potential0 = sum(potential0, na.rm = TRUE),
+                  potential1 = sum(potential1, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        arrange(-potential0) %>%
+        mutate(potential0_cumsum = cumsum(potential0),
+               potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
+               fte = freq / 8 * 12 / 185,
+               cost = fte * 70000,
+               productivity = target / fte,
+               productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
+                                     0,
+                                     productivity),
+               # roi = (target - cost) / cost,
+               growth = potential1 / potential0 - 1,
+               growth = ifelse(is.na(growth),
+                               0,
+                               growth)) %>% 
+        arrange(potential0_cumctrb)
+      
+      total.data2.m <- total.data2 %>% 
+        filter(flag == 0) %>% 
+        filter(row_number() > as.numeric(CalcDataRcmd()$mark)) %>% 
+        filter(!(province %in% input$aban)) %>% 
+        bind_rows(filter(total.data2, flag == 1))
+      
+      total.data.m <- raw() %>% 
+        distinct() %>% 
+        filter(sku %in% input$covered.sku) %>% 
+        mutate(freq = ifelse(sku == "Gly",
+                             doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
+                             ifelse(sku == "Pentasa SUP",
+                                    doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                    ifelse(sku == "Pentasa TAB",
+                                           doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                           0)))) %>%
+        group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
+        summarise(freq = sum(freq, na.rm = TRUE),
+                  potential0 = sum(potential0, na.rm = TRUE),
+                  potential1 = sum(potential1, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        arrange(-potential0) %>%
+        mutate(potential0_cumsum = cumsum(potential0),
+               potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
+               fte = freq / 8 * 12 / 185,
+               cost = fte * 70000,
+               productivity = target / fte,
+               productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
+                                     0,
+                                     productivity),
+               # roi = (target - cost) / cost,
+               growth = potential1 / potential0 - 1,
+               growth = ifelse(is.na(growth),
+                               0,
+                               growth))
+      
+      total.data3 <- total.data.m %>% 
+        filter(flag == 0) %>% 
+        filter(!(province %in% input$aban)) %>% 
+        filter(productivity >= scenario1$productivity,
+               growth >= scenario1$growth) %>% 
+        filter(potential0_cumctrb <= scenario1$kPotnCtrb,
+               !(province %in% scenario1$aban)) %>% 
+        bind_rows(filter(total.data.m, flag == 1)) %>% 
+        mutate(market_share = target / potential0,
+               market_share = ifelse(is.na(market_share),
+                                     0,
+                                     market_share))
+      
+      total.data4 <- total.data.m %>% 
+        filter(flag == 0) %>% 
+        filter(!(province %in% input$aban)) %>% 
+        filter(productivity >= scenario2$productivity,
+               growth >= scenario2$growth) %>% 
+        filter(potential0_cumctrb <= scenario2$kPotnCtrb,
+               !(province %in% scenario2$aban)) %>% 
+        bind_rows(filter(total.data.m, flag == 1)) %>% 
+        mutate(market_share = target / potential0,
+               market_share = ifelse(is.na(market_share),
+                                     0,
+                                     market_share))
       wb <- createWorkbook()
       addWorksheet(wb, "Actual")
       addWorksheet(wb, "Max")
       addWorksheet(wb, "Scenario Ⅰ")
       addWorksheet(wb, "Scenario Ⅱ")
       
-      writeDataTable(wb, "Actual", ActualScenario()$actual)
-      writeDataTable(wb, "Max", MaxScenario()$max)
-      writeDataTable(wb, "Scenario Ⅰ", Scenario1()$scenario)
-      writeDataTable(wb, "Scenario Ⅱ", Scenario2()$scenario)
+      writeDataTable(wb, "Actual", total.data1)
+      writeDataTable(wb, "Max", total.data2)
+      writeDataTable(wb, "Scenario Ⅰ", total.data3)
+      writeDataTable(wb, "Scenario Ⅱ", total.data4)
       
       saveWorkbook(wb, file, overwrite = TRUE)
     }
