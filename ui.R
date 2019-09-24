@@ -497,6 +497,7 @@ ui <- dashboardPage(
                  tags$div(downloadButton("DownloadEvaluation", label = "Download", style = "width:100px; color:#000;"),
                           style = "display:inline-block; width:100%; text-align:center;"))
         ),
+        br(),
         fluidRow(
           box(
             solidHeader = TRUE,
