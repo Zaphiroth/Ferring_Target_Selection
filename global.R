@@ -1,7 +1,6 @@
 if(Sys.getenv('SHINY_PORT') == "") options(shiny.maxRequestSize=1000*1024^2)
 
 library(DT)
-library(reshape2)
 library(plyr)
 library(data.table)
 library(shiny)
@@ -31,19 +30,8 @@ options(shiny.maxRequestSize = 1000 * 1024 ^ 2,
         square.color = "#FF4500",
         table.color = "#3C8DBC",
         covered.color = "#17B0F7",
-        uncovered.color = "#0000CD",
+        uncovered.color = "#B0C4DE",
         covered.line.color = "#FFC0CB",
         total.line.color = "#DC143C",
         share.color = "#DC143C",
         evaluation.color = "#C8E6FF")
-
-## save scenario ----
-scenario1 <- list(kPotnCtrb = 0,
-                  aban = NULL,
-                  productivity = 0,
-                  growth = -Inf)
-
-scenario2 <- list(kPotnCtrb = 0,
-                  aban = NULL,
-                  productivity = 0,
-                  growth = -Inf)

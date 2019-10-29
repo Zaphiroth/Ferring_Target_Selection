@@ -32,6 +32,17 @@
 ##---- load functions ----
 # source("./functions/concentration.R", encoding = "UTF-8")
 
+## save scenario ----
+scenario1 <- list(kPotnCtrb = 0,
+                  aban = NULL,
+                  productivity = 0,
+                  growth = -Inf)
+
+scenario2 <- list(kPotnCtrb = 0,
+                  aban = NULL,
+                  productivity = 0,
+                  growth = -Inf)
+
 ##---- server ----
 server <- function(input, output, session) {
   raw <- reactive({
@@ -140,87 +151,90 @@ server <- function(input, output, session) {
   
   ## concentration curve ----
   ConcPlot <- reactive({
-    if (is.null(CalcData()))
-      return(NULL)
-    
-    if (is.na(input$kPotnCtrb)) {
-      kProp <- 0
-    } else {
-      kProp <- input$kPotnCtrb
-    }
-    
-    plot.data <- bind_rows(CalcData()$data1, CalcData()$data2) %>% 
-      arrange(potential0_cumctrb)
-    
-    plot1 <- plot_ly(hoverinfo = "x+y")
-    
-    plot1 <- plot1 %>% 
-      add_trace(x = as.numeric(rownames(plot.data)),
-                y = plot.data$potential0_cumctrb,
-                type = "scatter",
-                mode = "lines",
-                color = I(options()$total.color)) %>% 
-      add_markers(x = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
-                  y = kProp,
-                  color = I(options()$marker.color))
-    
-    # if (kProp != 0) {
-    #   plot1 <- plot1 %>% 
-    #     add_segments(x = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
-    #                  xend = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
-    #                  y = 0,
-    #                  yend = kProp,
-    #                  color = "red") %>%
-    #     add_segments(x = 0,
-    #                  xend = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
-    #                  y = kProp,
-    #                  yend = kProp,
-    #                  color = "red")
-    # }
-    
-    plot1 <- plot1 %>% 
-      layout(
-        showlegend = FALSE,
-        xaxis = list(
-          showticklabels = TRUE,
-          tickformat = ",",
-          showline = FALSE,
-          zeroline = TRUE,
-          title = "",
-          mirror = "ticks"
-        ),
-        yaxis = list(
-          showticklabels = TRUE,
-          ticksuffix = "%",
-          showline = FALSE,
-          zeroline = TRUE,
-          title = "",
-          hoverformat = ".2f",
-          mirror = "ticks"
-        )
-      )
-    
-    if (kProp != 0) {
+    input$go
+    isolate({
+      if (is.null(CalcData()))
+        return(NULL)
+      
+      if (is.na(input$kPotnCtrb)) {
+        kProp <- 0
+      } else {
+        kProp <- input$kPotnCtrb
+      }
+      
+      plot.data <- bind_rows(CalcData()$data1, CalcData()$data2) %>% 
+        arrange(potential0_cumctrb)
+      
+      plot1 <- plot_ly(hoverinfo = "x+y")
+      
+      plot1 <- plot1 %>% 
+        add_trace(x = as.numeric(rownames(plot.data)),
+                  y = plot.data$potential0_cumctrb,
+                  type = "scatter",
+                  mode = "lines",
+                  color = I(options()$total.color)) %>% 
+        add_markers(x = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
+                    y = kProp,
+                    color = I(options()$marker.color))
+      
+      # if (kProp != 0) {
+      #   plot1 <- plot1 %>% 
+      #     add_segments(x = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
+      #                  xend = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
+      #                  y = 0,
+      #                  yend = kProp,
+      #                  color = "red") %>%
+      #     add_segments(x = 0,
+      #                  xend = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
+      #                  y = kProp,
+      #                  yend = kProp,
+      #                  color = "red")
+      # }
+      
       plot1 <- plot1 %>% 
         layout(
-          shapes = list(
-            list(
-              type = "rect",
-              fillcolor = options()$square.color,
-              line = list(color = options()$square.color),
-              opacity = 0.2,
-              x0 = 0,
-              x1 = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
-              xref = "x",
-              y0 = 0,
-              y1 = kProp,
-              yref = "y"
-            )
+          showlegend = FALSE,
+          xaxis = list(
+            showticklabels = TRUE,
+            tickformat = ",",
+            showline = FALSE,
+            zeroline = TRUE,
+            title = "",
+            mirror = "ticks"
+          ),
+          yaxis = list(
+            showticklabels = TRUE,
+            ticksuffix = "%",
+            showline = FALSE,
+            zeroline = TRUE,
+            title = "",
+            hoverformat = ".2f",
+            mirror = "ticks"
           )
         )
-    }
-    
-    plot1
+      
+      if (kProp != 0) {
+        plot1 <- plot1 %>% 
+          layout(
+            shapes = list(
+              list(
+                type = "rect",
+                fillcolor = options()$square.color,
+                line = list(color = options()$square.color),
+                opacity = 0.2,
+                x0 = 0,
+                x1 = nrow(plot.data[which(plot.data$potential0_cumctrb <= kProp), ]),
+                xref = "x",
+                y0 = 0,
+                y1 = kProp,
+                yref = "y"
+              )
+            )
+          )
+      }
+      
+      plot1
+    })
   })
   
   output$Conc <- renderPlotly({
@@ -229,175 +243,178 @@ server <- function(input, output, session) {
   
   ## segmentation ----
   SegData <- reactive({
-    if (is.null(CalcData()))
-      return(NULL)
-    
-    if (is.na(input$kPotnCtrb)) {
-      kProp <- 0
-    } else {
-      kProp <- input$kPotnCtrb
-    }
-    
-    seg.data <- CalcData()$data2 %>% 
-      filter(!(province %in% input$aban)) %>% 
-      bind_rows(CalcData()$data2) %>% 
-      mutate(market_share = target / potential0,
-             market_share = ifelse(is.na(market_share),
-                                   0,
-                                   market_share))
-    
-    if (input$growth_share == "Growth Rate") {
-      if (is.na(input$kGrowth)) {
-        kIndex <- -Inf
+    input$go
+    isolate({
+      if (is.null(CalcData()))
+        return(NULL)
+      
+      if (is.na(input$kPotnCtrb)) {
+        kProp <- 0
       } else {
-        kIndex <- input$kGrowth/100
+        kProp <- input$kPotnCtrb
       }
       
-      seg.total <- seg.data %>% 
-        mutate(segment = ifelse(potential0_cumctrb <= kProp & growth >= kIndex,
-                                "A",
-                                ifelse(potential0_cumctrb <= kProp & growth < kIndex,
-                                       "B",
-                                       ifelse(potential0_cumctrb > kProp & growth >= kIndex,
-                                              "C",
-                                              ifelse(potential0_cumctrb > kProp & growth < kIndex,
-                                                     "D",
-                                                     "0")))))
+      seg.data <- CalcData()$data2 %>% 
+        filter(!(province %in% input$aban)) %>% 
+        bind_rows(CalcData()$data1) %>% 
+        mutate(market_share = target / potential0,
+               market_share = ifelse(is.na(market_share),
+                                     0,
+                                     market_share))
       
-    } else if (input$growth_share == "Market Share") {
-      if (is.na(input$kShare)) {
-        kIndex <- 0
+      if (input$growth_share == "Growth Rate") {
+        if (is.na(input$kGrowth)) {
+          kIndex <- -Inf
+        } else {
+          kIndex <- input$kGrowth/100
+        }
+        
+        seg.total <- seg.data %>% 
+          mutate(segment = ifelse(potential0_cumctrb <= kProp & growth >= kIndex,
+                                  "A",
+                                  ifelse(potential0_cumctrb <= kProp & growth < kIndex,
+                                         "B",
+                                         ifelse(potential0_cumctrb > kProp & growth >= kIndex,
+                                                "C",
+                                                ifelse(potential0_cumctrb > kProp & growth < kIndex,
+                                                       "D",
+                                                       "0")))))
+        
+      } else if (input$growth_share == "Market Share") {
+        if (is.na(input$kShare)) {
+          kIndex <- 0
+        } else {
+          kIndex <- input$kShare/100
+        }
+        
+        seg.total <- seg.data %>% 
+          mutate(segment = ifelse(potential0_cumctrb <= kProp & market_share >= kIndex,
+                                  "A",
+                                  ifelse(potential0_cumctrb <= kProp & market_share < kIndex,
+                                         "B",
+                                         ifelse(potential0_cumctrb > kProp & market_share >= kIndex,
+                                                "C",
+                                                ifelse(potential0_cumctrb > kProp & market_share < kIndex,
+                                                       "D",
+                                                       "0")))))
+        
       } else {
-        kIndex <- input$kShare/100
+        return(NULL)
       }
       
-      seg.total <- seg.data %>% 
-        mutate(segment = ifelse(potential0_cumctrb <= kProp & market_share >= kIndex,
-                                "A",
-                                ifelse(potential0_cumctrb <= kProp & market_share < kIndex,
-                                       "B",
-                                       ifelse(potential0_cumctrb > kProp & market_share >= kIndex,
-                                              "C",
-                                              ifelse(potential0_cumctrb > kProp & market_share < kIndex,
-                                                     "D",
-                                                     "0")))))
+      seg.a <- seg.total %>% 
+        filter(segment == "A") %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
       
-    } else {
-      return(NULL)
-    }
-    
-    seg.a <- seg.total %>% 
-      filter(segment == "A") %>% 
-      mutate(hospital_num = n(),
-             city_num = length(sort(unique(city)))) %>% 
-      group_by(hospital_num, city_num) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             productivity = target / fte) %>% 
-      mutate(hospital_num = format(hospital_num, big.mark = ","),
-             city_num = format(city_num, big.mark = ","),
-             fte = format(round(fte,1), big.mark = ","),
-             roi = paste0(round(roi, 1), "%"),
-             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
-      select("Number of Hospital" = "hospital_num",
-             "Number of City" = "city_num",
-             "FTE" = "fte",
-             "ROI" = "roi",
-             "Productivity" = "productivity") %>% 
-      melt(id.vars = NULL)
-    
-    seg.b <- seg.total %>% 
-      filter(segment == "B") %>% 
-      mutate(hospital_num = n(),
-             city_num = length(sort(unique(city)))) %>% 
-      group_by(hospital_num, city_num) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             productivity = target / fte) %>% 
-      mutate(hospital_num = format(hospital_num, big.mark = ","),
-             city_num = format(city_num, big.mark = ","),
-             fte = format(round(fte,1), big.mark = ","),
-             roi = paste0(round(roi, 1), "%"),
-             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
-      select("Number of Hospital" = "hospital_num",
-             "Number of City" = "city_num",
-             "FTE" = "fte",
-             "ROI" = "roi",
-             "Productivity" = "productivity") %>% 
-      melt(id.vars = NULL)
-    
-    seg.c <- seg.total %>% 
-      filter(segment == "C") %>% 
-      mutate(hospital_num = n(),
-             city_num = length(sort(unique(city)))) %>% 
-      group_by(hospital_num, city_num) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             productivity = target / fte) %>% 
-      mutate(hospital_num = format(hospital_num, big.mark = ","),
-             city_num = format(city_num, big.mark = ","),
-             fte = format(round(fte,1), big.mark = ","),
-             roi = paste0(round(roi, 1), "%"),
-             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
-      select("Number of Hospital" = "hospital_num",
-             "Number of City" = "city_num",
-             "FTE" = "fte",
-             "ROI" = "roi",
-             "Productivity" = "productivity") %>% 
-      melt(id.vars = NULL)
-    
-    seg.d <- seg.total %>% 
-      filter(segment == "D") %>% 
-      mutate(hospital_num = n(),
-             city_num = length(sort(unique(city)))) %>% 
-      group_by(hospital_num, city_num) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             productivity = target / fte) %>% 
-      mutate(hospital_num = format(hospital_num, big.mark = ","),
-             city_num = format(city_num, big.mark = ","),
-             fte = format(round(fte,1), big.mark = ","),
-             roi = paste0(round(roi, 1), "%"),
-             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
-      select("Number of Hospital" = "hospital_num",
-             "Number of City" = "city_num",
-             "FTE" = "fte",
-             "ROI" = "roi",
-             "Productivity" = "productivity") %>% 
-      melt(id.vars = NULL)
-    
-    seg.na <- data.frame("variable" = c("Number of Hospital", "Number of City", 
-                                        "FTE", "ROI", "Productivity"),
-                         "value" = c(0, 0, 0, 0, 0))
-    
-    seg.list <- list("seg.a" = seg.a,
-                     "seg.b" = seg.b,
-                     "seg.c" = seg.c,
-                     "seg.d" = seg.d)
-    
-    for (i in names(seg.list)) {
-      if (nrow(seg.list[[i]]) == 0) {
-        seg.list[[i]] <- seg.na
+      seg.b <- seg.total %>% 
+        filter(segment == "B") %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.c <- seg.total %>% 
+        filter(segment == "C") %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.d <- seg.total %>% 
+        filter(segment == "D") %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.na <- data.frame("variable" = c("Number of Hospital", "Number of City", 
+                                          "FTE", "ROI", "Productivity"),
+                           "value" = c(0, 0, 0, 0, 0))
+      
+      seg.list <- list("seg.a" = seg.a,
+                       "seg.b" = seg.b,
+                       "seg.c" = seg.c,
+                       "seg.d" = seg.d)
+      
+      for (i in names(seg.list)) {
+        if (nrow(seg.list[[i]]) == 0) {
+          seg.list[[i]] <- seg.na
+        }
       }
-    }
-    
-    seg.list[["total"]] <- seg.total
-    seg.list[["kProp"]] <- kProp
-    seg.list[["kIndex"]] <- kIndex
-    
-    seg.list
+      
+      seg.list[["total"]] <- seg.total
+      seg.list[["kProp"]] <- kProp
+      seg.list[["kIndex"]] <- kIndex
+      
+      seg.list
+    })
   })
   
   output$seg.v <- renderText({
@@ -584,6 +601,7 @@ server <- function(input, output, session) {
                   name = "代表",
                   type = "bar",
                   text = plot.data$rep_num,
+                  textfont = list(color = I("#000")),
                   textposition = "outside",
                   color = I(options()$covered.color)) %>% 
         layout(
@@ -739,6 +757,10 @@ server <- function(input, output, session) {
     }
     
     total.data <- CalcData()$data2 %>% 
+      filter(!(province %in% input$aban)) %>% 
+      bind_rows(CalcData()$data1)
+    
+    covered.data <- CalcData()$data2 %>% 
       filter(potential0_cumctrb <= kProp,
              !(province %in% input$aban))
     
@@ -749,9 +771,9 @@ server <- function(input, output, session) {
     # }
     
     if (is.na(input$productivity)) {
-      covered.data <- total.data
+      covered.data <- covered.data
     } else {
-      covered.data <- total.data[which(total.data$productivity >= input$productivity), ]
+      covered.data <- covered.data[which(covered.data$productivity >= input$productivity), ]
     }
     
     # if (is.na(input$roi)) {
@@ -766,8 +788,9 @@ server <- function(input, output, session) {
       covered.data <- covered.data[which(covered.data$growth >= input$growth/100), ]
     }
     
+    covered.data <- bind_rows(covered.data, CalcData()$data1)
+    
     actual.prov.data <- covered.data %>% 
-      bind_rows(CalcData()$data1) %>% 
       filter(is == "Y") %>% 
       group_by(province) %>% 
       summarise(actual_hospital_num = n(),
@@ -786,7 +809,6 @@ server <- function(input, output, session) {
              actual_roi = (actual_target - actual_cost) / actual_cost)
     
     covered.prov.data <- covered.data %>% 
-      bind_rows(CalcData()$data1) %>% 
       group_by(province) %>% 
       summarise(covered_hospital_num = n(),
                 covered_city_num = length(sort(unique(city))),
@@ -804,7 +826,6 @@ server <- function(input, output, session) {
              covered_roi = (covered_target - covered_cost) / covered_cost)
     
     total.prov.data <- total.data %>% 
-      bind_rows(CalcData()$data1) %>% 
       group_by(province) %>% 
       summarise(total_hospital_num = n(),
                 total_city_num = length(sort(unique(city))),
@@ -844,121 +865,124 @@ server <- function(input, output, session) {
   
   ## plot1 ----
   ProvPlot1 <- reactive({
-    if (is.null(ProvData()) | is.null(input$kpi1))
-      return(NULL)
-    if (nrow(ProvData()) == 0)
-      return(NULL)
-    
-    plot.data <- ProvData()[c("province",
-                              paste0("actual_", input$kpi1),
-                              paste0("covered_", input$kpi1),
-                              paste0("uncovered_", input$kpi1),
-                              paste0("total_", input$kpi1),
-                              "actual_productivity",
-                              "covered_productivity",
-                              "uncovered_productivity",
-                              "total_productivity")]
-    colnames(plot.data) <- c("x", "y1", "y2", "y3", "y", "z1", "z2", "z3", "z")
-    plot.data <- plot.data %>% 
-      # mutate(z1 = format(round(z1, 2), big.mark = ","),
-      #        z2 = format(round(z2, 2), big.mark = ","),
-      #        z3 = format(round(z3, 2), big.mark = ","),
-      #        z = format(round(z, 2), big.mark = ",")) %>% 
-      arrange(-y)
-    
-    plot1 <- plot_ly(hoverinfo = "name+x+y")
-    
-    plot1 <- plot1 %>% 
-      add_bars(x = plot.data$x,
-               y = plot.data$y2,
-               type = "bar",
-               name = "Covered",
-               color = I(options()$covered.color)) %>% 
-      add_bars(x = plot.data$x,
-               y = plot.data$y3,
-               type = "bar",
-               name = "Uncovered",
-               color = I(options()$uncovered.color)) %>% 
-      add_trace(x = plot.data$x,
-                y = plot.data$z,
-                text = format(round(plot.data$z, 2), big.mark = ","),
-                textfont = list(color = options()$total.line.color),
-                textposition = "middle top",
-                yaxis = "y2",
-                type = "scatter",
-                mode = "lines",
-                name = "Total hospital",
-                color = I(options()$total.line.color)) %>% 
-      add_trace(x = plot.data$x,
-                y = plot.data$z1,
-                text = format(round(plot.data$z1, 2), big.mark = ","),
-                textfont = list(color = options()$covered.line.color),
-                textposition = "middle top",
-                yaxis = "y2",
-                type = "scatter",
-                mode = "lines",
-                name = "Covered",
-                color = I(options()$covered.line.color)) %>% 
-      layout(
-        barmode = "stack",
-        showlegend = TRUE,
-        legend = list(
-          x = 0,
-          y = 1.2,
-          orientation = "h"
-        ),
-        margin = list(
-          l = 50,
-          r = 50,
-          b = 50,
-          t = 50,
-          pad = 4
-        ),
-        xaxis = list(
-          type = "category",
-          categoryorder = "array",
-          categoryarray = ~plot.data$x,
-          showline = FALSE,
-          title = "",
-          showticklabels = TRUE,
-          mirror = "ticks"
-        ),
-        yaxis = list(
-          side = "left",
-          showticklabels = TRUE,
-          tickformat = ",",
-          showline = FALSE,
-          showgrid = TRUE,
-          zeroline = TRUE,
-          title = "",
-          range = c(0, max(plot.data$y)*1.2),
-          mirror = "ticks"
-        ),
-        yaxis2 = list(
-          overlaying = "y",
-          side = "right",
-          showticklabels = TRUE,
-          tickformat = ",",
-          hoverformat = ",.2f",
-          showline = FALSE,
-          showgrid = FALSE,
-          zeroline = TRUE,
-          title = "",
-          range = c(0, max(plot.data$z, plot.data$z1)*1.2),
-          mirror = "ticks"
-        )
-      )
-    
-    if (input$kpi1 == "fte") {
+    input$go
+    isolate({
+      if (is.null(ProvData()) | is.null(input$kpi1))
+        return(NULL)
+      if (nrow(ProvData()) == 0)
+        return(NULL)
+      
+      plot.data <- ProvData()[c("province",
+                                paste0("actual_", input$kpi1),
+                                paste0("covered_", input$kpi1),
+                                paste0("uncovered_", input$kpi1),
+                                paste0("total_", input$kpi1),
+                                "actual_productivity",
+                                "covered_productivity",
+                                "uncovered_productivity",
+                                "total_productivity")]
+      colnames(plot.data) <- c("x", "y1", "y2", "y3", "y", "z1", "z2", "z3", "z")
+      plot.data <- plot.data %>% 
+        # mutate(z1 = format(round(z1, 2), big.mark = ","),
+        #        z2 = format(round(z2, 2), big.mark = ","),
+        #        z3 = format(round(z3, 2), big.mark = ","),
+        #        z = format(round(z, 2), big.mark = ",")) %>% 
+        arrange(-y)
+      
+      plot1 <- plot_ly(hoverinfo = "name+x+y")
+      
       plot1 <- plot1 %>% 
+        add_bars(x = plot.data$x,
+                 y = plot.data$y2,
+                 type = "bar",
+                 name = "Covered",
+                 color = I(options()$covered.color)) %>% 
+        add_bars(x = plot.data$x,
+                 y = plot.data$y3,
+                 type = "bar",
+                 name = "Uncovered",
+                 color = I(options()$uncovered.color)) %>% 
+        add_trace(x = plot.data$x,
+                  y = plot.data$z,
+                  text = format(round(plot.data$z, 2), big.mark = ","),
+                  textfont = list(color = options()$total.line.color),
+                  textposition = "middle top",
+                  yaxis = "y2",
+                  type = "scatter",
+                  mode = "lines",
+                  name = "Total hospital productivity",
+                  color = I(options()$total.line.color)) %>% 
+        add_trace(x = plot.data$x,
+                  y = plot.data$z2,
+                  text = format(round(plot.data$z2, 2), big.mark = ","),
+                  textfont = list(color = options()$covered.line.color),
+                  textposition = "middle top",
+                  yaxis = "y2",
+                  type = "scatter",
+                  mode = "lines",
+                  name = "Covered productivity",
+                  color = I(options()$covered.line.color)) %>% 
         layout(
+          barmode = "stack",
+          showlegend = TRUE,
+          legend = list(
+            x = 0,
+            y = 1.2,
+            orientation = "h"
+          ),
+          margin = list(
+            l = 50,
+            r = 50,
+            b = 50,
+            t = 50,
+            pad = 4
+          ),
+          xaxis = list(
+            type = "category",
+            categoryorder = "array",
+            categoryarray = ~plot.data$x,
+            showline = FALSE,
+            title = "",
+            showticklabels = TRUE,
+            mirror = "ticks"
+          ),
           yaxis = list(
-            hoverformat = ".2f"
+            side = "left",
+            showticklabels = TRUE,
+            tickformat = ",",
+            showline = FALSE,
+            showgrid = TRUE,
+            zeroline = TRUE,
+            title = "",
+            range = c(0, max(plot.data$y)*1.2),
+            mirror = "ticks"
+          ),
+          yaxis2 = list(
+            overlaying = "y",
+            side = "right",
+            showticklabels = TRUE,
+            # tickformat = ",",
+            hoverformat = ",.2f",
+            showline = FALSE,
+            showgrid = FALSE,
+            zeroline = TRUE,
+            title = "",
+            range = c(0, max(plot.data$z, plot.data$z1)*1.2),
+            mirror = "ticks"
           )
         )
-    }
-    
-    plot1
+      
+      if (input$kpi1 == "fte") {
+        plot1 <- plot1 %>% 
+          layout(
+            yaxis = list(
+              hoverformat = ",.2f"
+            )
+          )
+      }
+      
+      plot1
+    })
   })
   
   output$HospitalPlot <- renderPlotly({
@@ -967,85 +991,85 @@ server <- function(input, output, session) {
   
   ## table1 ----
   ProvTable1 <- reactive({
-    if (is.null(ProvData()) | is.null(input$kpi1))
-      return(NULL)
-    if (nrow(ProvData()) == 0)
-      return(NULL)
-    
-    table.data <- ProvData()
-    table.data <- table.data[c("province",
-                               paste0("actual_", input$kpi1),
-                               paste0("covered_", input$kpi1),
-                               paste0("uncovered_", input$kpi1),
-                               paste0("total_", input$kpi1))]
-    colnames(table.data) <- c("index", "Actual", "Covered", "Uncovered", "Total")
-    
-    ordering <- arrange(table.data, -`Total`)$index
-    table.data <- table.data %>% 
-      select(-Total) %>% 
-      melt(id.vars = "index", variable.name = "省份") %>% 
-      dcast(`省份`~index, value.var = "value") %>% 
-      select("省份", ordering)
-    
-    table.data
+    input$go
+    isolate({
+      if (is.null(ProvData()) | is.null(input$kpi1))
+        return(NULL)
+      if (nrow(ProvData()) == 0)
+        return(NULL)
+      
+      table.data <- ProvData()
+      table.data <- table.data[c("province",
+                                 paste0("actual_", input$kpi1),
+                                 paste0("covered_", input$kpi1),
+                                 paste0("uncovered_", input$kpi1),
+                                 paste0("total_", input$kpi1))]
+      colnames(table.data) <- c("index", "Actual", "Covered", "Uncovered", "Total")
+      
+      ordering <- arrange(table.data, -`Total`)$index
+      table.data <- table.data %>% 
+        select(-Total) %>% 
+        melt(id.vars = "index", variable.name = "省份") %>% 
+        dcast(`省份`~index, value.var = "value") %>% 
+        select("省份", ordering)
+      
+      if (input$kpi1 == "fte") {
+        dgt = 2
+      } else {
+        dgt = 0
+      }
+      
+      DT::datatable(
+        table.data,
+        rownames = FALSE,
+        # extensions = c('FixedColumns', 'Buttons'),
+        #filter = 'bottom',
+        ##### this sentence need to be changed when new variables added
+        options = list(
+          # dom = '<"bottom">Bfrtpl',
+          # buttons = I('colvis'),
+          columnDefs = list(
+            list(
+              className = 'dt-center',
+              targets = '_all'
+            )
+          ),
+          initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
+            "}"
+          ),
+          paging = FALSE,
+          scrollX = FALSE,
+          searching = FALSE,
+          ordering = FALSE,
+          pageLength = 5,
+          lengthChange = FALSE,
+          bInfo = FALSE
+        )
+      ) %>% 
+        # formatStyle(
+        #   "省份",
+        #   target = "row",
+        #   # color = styleEqual("Total", options()$table.color),
+        #   fontWeight = styleEqual("Total", "bold")
+        # ) %>% 
+        formatStyle(
+          "省份",
+          color = options()$table.color,
+          fontWeight = "bold"
+        ) %>% 
+        formatRound(
+          columns = TRUE,
+          digits = dgt
+          # interval = 3,
+          # mark = ","
+        )
+    })
   })
   
   output$HospitalTable <- DT::renderDataTable({
-    if (is.null(ProvTable1()))
-      return(NULL)
-    
-    if (input$kpi1 == "fte") {
-      dgt = 2
-    } else {
-      dgt = 0
-    }
-    
-    DT::datatable(
-      ProvTable1(),
-      rownames = FALSE,
-      # extensions = c('FixedColumns', 'Buttons'),
-      #filter = 'bottom',
-      ##### this sentence need to be changed when new variables added
-      options = list(
-        # dom = '<"bottom">Bfrtpl',
-        # buttons = I('colvis'),
-        columnDefs = list(
-          list(
-            className = 'dt-center',
-            targets = '_all'
-          )
-        ),
-        initComplete = JS(
-          "function(settings, json) {",
-          "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
-          "}"
-        ),
-        paging = FALSE,
-        scrollX = FALSE,
-        searching = FALSE,
-        ordering = FALSE,
-        pageLength = 5,
-        lengthChange = FALSE,
-        bInfo = FALSE
-      )
-    ) %>% 
-      # formatStyle(
-      #   "省份",
-      #   target = "row",
-      #   # color = styleEqual("Total", options()$table.color),
-      #   fontWeight = styleEqual("Total", "bold")
-      # ) %>% 
-      formatStyle(
-        "省份",
-        color = options()$table.color,
-        fontWeight = "bold"
-      ) %>% 
-      formatRound(
-        columns = TRUE,
-        digits = dgt
-        # interval = 3,
-        # mark = ","
-      )
+    ProvTable1()
   })
   
   ## share plot ----
@@ -1375,69 +1399,72 @@ server <- function(input, output, session) {
   
   ## recommendation concentration curve ----
   ConcPlotRcmd <- reactive({
-    if (is.null(CalcDataRcmd()))
-      return(NULL)
-    
-    plot.data <- bind_rows(CalcDataRcmd()$data1, CalcDataRcmd()$data2)
-    x.mark <- round(as.numeric(CalcDataRcmd()$mark))
-    y.mark <- ifelse(x.mark == "0", 0, plot.data$potential0_cumctrb[which(rownames(plot.data) == as.character(x.mark))])
-    
-    plot1 <- plot_ly(hoverinfo = "x+y")
-    plot1 <- plot1 %>% 
-      add_trace(x = as.numeric(rownames(plot.data)),
-                y = plot.data$potential0_cumctrb,
-                type = "scatter",
-                mode = "lines",
-                color = I(options()$total.color)) %>% 
-      add_markers(x = x.mark,
-                  y = y.mark,
-                  color = I(options()$marker.color)) %>% 
-      # add_segments(x = x.mark,
-      #              xend = x.mark,
-      #              y = 0,
-      #              yend = y.mark,
-      #              color = "red") %>%
-      # add_segments(x = 0,
-      #              xend = x.mark,
-      #              y = y.mark,
-      #              yend = y.mark,
-      #              color = "red") %>%
-      layout(
-        showlegend = FALSE,
-        xaxis = list(
-          showticklabels = TRUE,
-          tickformat = ",",
-          showline = FALSE,
-          zeroline = TRUE,
-          title = "",
-          mirror = "ticks"
-        ),
-        yaxis = list(
-          showticklabels = TRUE,
-          ticksuffix = "%",
-          showline = FALSE,
-          zeroline = TRUE,
-          title = "",
-          hoverformat = ".2f",
-          mirror = "ticks"
-        ),
-        shapes = list(
-          list(
-            type = "rect",
-            fillcolor = options()$square.color,
-            line = list(color = options()$square.color),
-            opacity = 0.2,
-            x0 = 0,
-            x1 = x.mark,
-            xref = "x",
-            y0 = 0,
-            y1 = y.mark,
-            yref = "y"
+    input$go
+    isolate({
+      if (is.null(CalcDataRcmd()))
+        return(NULL)
+      
+      plot.data <- bind_rows(CalcDataRcmd()$data1, CalcDataRcmd()$data2)
+      x.mark <- round(as.numeric(CalcDataRcmd()$mark))
+      y.mark <- ifelse(x.mark == "0", 0, plot.data$potential0_cumctrb[which(rownames(plot.data) == as.character(x.mark))])
+      
+      plot1 <- plot_ly(hoverinfo = "x+y")
+      plot1 <- plot1 %>% 
+        add_trace(x = as.numeric(rownames(plot.data)),
+                  y = plot.data$potential0_cumctrb,
+                  type = "scatter",
+                  mode = "lines",
+                  color = I(options()$total.color)) %>% 
+        add_markers(x = x.mark,
+                    y = y.mark,
+                    color = I(options()$marker.color)) %>% 
+        # add_segments(x = x.mark,
+        #              xend = x.mark,
+        #              y = 0,
+        #              yend = y.mark,
+        #              color = "red") %>%
+        # add_segments(x = 0,
+        #              xend = x.mark,
+        #              y = y.mark,
+        #              yend = y.mark,
+        #              color = "red") %>%
+        layout(
+          showlegend = FALSE,
+          xaxis = list(
+            showticklabels = TRUE,
+            tickformat = ",",
+            showline = FALSE,
+            zeroline = TRUE,
+            title = "",
+            mirror = "ticks"
+          ),
+          yaxis = list(
+            showticklabels = TRUE,
+            ticksuffix = "%",
+            showline = FALSE,
+            zeroline = TRUE,
+            title = "",
+            hoverformat = ".2f",
+            mirror = "ticks"
+          ),
+          shapes = list(
+            list(
+              type = "rect",
+              fillcolor = options()$square.color,
+              line = list(color = options()$square.color),
+              opacity = 0.2,
+              x0 = 0,
+              x1 = x.mark,
+              xref = "x",
+              y0 = 0,
+              y1 = y.mark,
+              yref = "y"
+            )
           )
         )
-      )
-    
-    plot1
+      
+      plot1
+    })
   })
   
   output$ConcRcmd <- renderPlotly({
@@ -1446,134 +1473,137 @@ server <- function(input, output, session) {
   
   ## recommendation segmentation ----
   SegDataRcmd <- reactive({
-    if (is.null(CalcDataRcmd()))
-      return(NULL)
-    
-    seg.data <- CalcDataRcmd()$data2 %>% 
-      filter(!(province %in% input$aban)) %>% 
-      bind_rows(CalcDataRcmd()$data1)
-    
-    total.data <- bind_rows(CalcDataRcmd()$data1, CalcDataRcmd()$data2)
-    
-    kRow <- as.numeric(CalcDataRcmd()$mark)
-    kProp <- round(total.data$potential0_cumctrb[which(rownames(total.data) == as.character(kRow))], 2)
-    kGrMean <- sum(seg.data$potential1, na.rm = TRUE) / sum(seg.data$potential0, na.rm = TRUE) - 1
-    
-    seg.a <- seg.data %>% 
-      filter(potential0_cumctrb <= kProp,
-             growth >= kGrMean) %>% 
-      mutate(hospital_num = n(),
-             city_num = length(sort(unique(city)))) %>% 
-      group_by(hospital_num, city_num) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             productivity = target / fte) %>% 
-      mutate(hospital_num = format(hospital_num, big.mark = ","),
-             city_num = format(city_num, big.mark = ","),
-             fte = format(round(fte,1), big.mark = ","),
-             roi = paste0(round(roi, 1), "%"),
-             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
-      select("Number of Hospital" = "hospital_num",
-             "Number of City" = "city_num",
-             "FTE" = "fte",
-             "ROI" = "roi",
-             "Productivity" = "productivity") %>% 
-      melt(id.vars = NULL)
-    
-    seg.b <- seg.data %>% 
-      filter(potential0_cumctrb <= kProp,
-             growth < kGrMean) %>% 
-      mutate(hospital_num = n(),
-             city_num = length(sort(unique(city)))) %>% 
-      group_by(hospital_num, city_num) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             productivity = target / fte) %>% 
-      mutate(hospital_num = format(hospital_num, big.mark = ","),
-             city_num = format(city_num, big.mark = ","),
-             fte = format(round(fte,1), big.mark = ","),
-             roi = paste0(round(roi, 1), "%"),
-             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
-      select("Number of Hospital" = "hospital_num",
-             "Number of City" = "city_num",
-             "FTE" = "fte",
-             "ROI" = "roi",
-             "Productivity" = "productivity") %>% 
-      melt(id.vars = NULL)
-    
-    seg.c <- seg.data %>% 
-      filter(potential0_cumctrb > kProp,
-             growth >= kGrMean) %>% 
-      mutate(hospital_num = n(),
-             city_num = length(sort(unique(city)))) %>% 
-      group_by(hospital_num, city_num) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             productivity = target / fte) %>% 
-      mutate(hospital_num = format(hospital_num, big.mark = ","),
-             city_num = format(city_num, big.mark = ","),
-             fte = format(round(fte,1), big.mark = ","),
-             roi = paste0(round(roi, 1), "%"),
-             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
-      select("Number of Hospital" = "hospital_num",
-             "Number of City" = "city_num",
-             "FTE" = "fte",
-             "ROI" = "roi",
-             "Productivity" = "productivity") %>% 
-      melt(id.vars = NULL)
-    
-    seg.d <- seg.data %>% 
-      filter(potential0_cumctrb > kProp,
-             growth < kGrMean) %>% 
-      mutate(hospital_num = n(),
-             city_num = length(sort(unique(city)))) %>% 
-      group_by(hospital_num, city_num) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             productivity = target / fte) %>% 
-      mutate(hospital_num = format(hospital_num, big.mark = ","),
-             city_num = format(city_num, big.mark = ","),
-             fte = format(round(fte,1), big.mark = ","),
-             roi = paste0(round(roi, 1), "%"),
-             productivity = format(round(productivity, 1), big.mark = ",")) %>% 
-      select("Number of Hospital" = "hospital_num",
-             "Number of City" = "city_num",
-             "FTE" = "fte",
-             "ROI" = "roi",
-             "Productivity" = "productivity") %>% 
-      melt(id.vars = NULL)
-    
-    seg.na <- data.frame("variable" = c("Number of Hospital", "Number of City", 
-                                        "FTE", "ROI", "Productivity"),
-                         "value" = c(0, 0, 0, 0, 0))
-    
-    seg.list <- list("seg.a" = seg.a,
-                     "seg.b" = seg.b,
-                     "seg.c" = seg.c,
-                     "seg.d" = seg.d)
-    
-    for (i in names(seg.list)) {
-      if (nrow(seg.list[[i]]) == 0) {
-        seg.list[[i]] <- seg.na
+    input$go
+    isolate({
+      if (is.null(CalcDataRcmd()))
+        return(NULL)
+      
+      seg.data <- CalcDataRcmd()$data2 %>% 
+        filter(!(province %in% input$aban)) %>% 
+        bind_rows(CalcDataRcmd()$data1)
+      
+      total.data <- bind_rows(CalcDataRcmd()$data1, CalcDataRcmd()$data2)
+      
+      kRow <- as.numeric(CalcDataRcmd()$mark)
+      kProp <- round(total.data$potential0_cumctrb[which(rownames(total.data) == as.character(kRow))], 2)
+      kGrMean <- sum(seg.data$potential1, na.rm = TRUE) / sum(seg.data$potential0, na.rm = TRUE) - 1
+      
+      seg.a <- seg.data %>% 
+        filter(potential0_cumctrb <= kProp,
+               growth >= kGrMean) %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.b <- seg.data %>% 
+        filter(potential0_cumctrb <= kProp,
+               growth < kGrMean) %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.c <- seg.data %>% 
+        filter(potential0_cumctrb > kProp,
+               growth >= kGrMean) %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.d <- seg.data %>% 
+        filter(potential0_cumctrb > kProp,
+               growth < kGrMean) %>% 
+        mutate(hospital_num = n(),
+               city_num = length(sort(unique(city)))) %>% 
+        group_by(hospital_num, city_num) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               productivity = target / fte) %>% 
+        mutate(hospital_num = format(hospital_num, big.mark = ","),
+               city_num = format(city_num, big.mark = ","),
+               fte = format(round(fte,1), big.mark = ","),
+               roi = paste0(round(roi, 1), "%"),
+               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+        select("Number of Hospital" = "hospital_num",
+               "Number of City" = "city_num",
+               "FTE" = "fte",
+               "ROI" = "roi",
+               "Productivity" = "productivity") %>% 
+        melt(id.vars = NULL)
+      
+      seg.na <- data.frame("variable" = c("Number of Hospital", "Number of City", 
+                                          "FTE", "ROI", "Productivity"),
+                           "value" = c(0, 0, 0, 0, 0))
+      
+      seg.list <- list("seg.a" = seg.a,
+                       "seg.b" = seg.b,
+                       "seg.c" = seg.c,
+                       "seg.d" = seg.d)
+      
+      for (i in names(seg.list)) {
+        if (nrow(seg.list[[i]]) == 0) {
+          seg.list[[i]] <- seg.na
+        }
       }
-    }
-    
-    seg.list[["kProp"]] <- kProp
-    seg.list[["kGrMean"]] <- kGrMean
-    
-    seg.list
+      
+      seg.list[["kProp"]] <- kProp
+      seg.list[["kGrMean"]] <- kGrMean
+      
+      seg.list
+    })
   })
   
   output$segRcmd.v <- renderText({
@@ -1768,45 +1798,57 @@ server <- function(input, output, session) {
   
   ## recommendation plot1 ----
   ProvPlot1Rcmd <- reactive({
-    if (is.null(ProvDataRcmd()) | is.null(input$kpi1.rcmd))
-      return(NULL)
-    if (nrow(ProvDataRcmd()) == 0)
-      return(NULL)
-    
-    plot.data <- ProvDataRcmd()
-    plot.data <- plot.data[c("province", paste0("covered_", input$kpi1.rcmd))]
-    colnames(plot.data) <- c("x", "y")
-    plot.data <- arrange(plot.data, -y)
-    
-    plot1 <- plot_ly(hoverinfo = "name+x+y")
-    
-    plot1 <- plot1 %>% 
-      add_bars(x = plot.data$x,
-               y = plot.data$y,
-               type = "bar",
-               name = "Covered",
-               color = I(options()$covered.color)) %>% 
-      layout(
-        showlegend = TRUE,
-        xaxis = list(
-          type = "category",
-          categoryorder = "array",
-          categoryarray = ~plot.data$x,
-          title = "",
-          showticklabels = TRUE,
-          mirror = "ticks"
-        ),
-        yaxis = list(
-          showticklabels = TRUE,
-          tickformat = ",",
-          showline = FALSE,
-          zeroline = TRUE,
-          title = "",
-          mirror = "ticks"
+    input$go
+    isolate({
+      if (is.null(ProvDataRcmd()) | is.null(input$kpi1.rcmd))
+        return(NULL)
+      if (nrow(ProvDataRcmd()) == 0)
+        return(NULL)
+      
+      plot.data <- ProvDataRcmd()
+      plot.data <- plot.data[c("province", paste0("covered_", input$kpi1.rcmd))]
+      colnames(plot.data) <- c("x", "y")
+      plot.data <- arrange(plot.data, -y)
+      
+      plot1 <- plot_ly(hoverinfo = "name+x+y")
+      
+      plot1 <- plot1 %>% 
+        add_bars(x = plot.data$x,
+                 y = plot.data$y,
+                 type = "bar",
+                 name = "Covered",
+                 color = I(options()$covered.color)) %>% 
+        layout(
+          showlegend = TRUE,
+          xaxis = list(
+            type = "category",
+            categoryorder = "array",
+            categoryarray = ~plot.data$x,
+            title = "",
+            showticklabels = TRUE,
+            mirror = "ticks"
+          ),
+          yaxis = list(
+            showticklabels = TRUE,
+            tickformat = ",",
+            showline = FALSE,
+            zeroline = TRUE,
+            title = "",
+            mirror = "ticks"
+          )
         )
-      )
-    
-    plot1
+      
+      if (input$kpi1.rcmd == "fte") {
+        plot1 <- plot1 %>% 
+          layout(
+            yaxis = list(
+              hoverformat = ",.2f"
+            )
+          )
+      }
+      
+      plot1
+    })
   })
   
   output$HospitalPlotRcmd <- renderPlotly({
@@ -1820,21 +1862,14 @@ server <- function(input, output, session) {
     if (nrow(ProvDataRcmd()) == 0)
       return(NULL)
     
-    plot.data <- ProvDataRcmd()
-    plot.data <- plot.data[c("province", paste0("covered_", input$kpi1.rcmd))]
-    colnames(plot.data) <- c("index", "Covered")
+    table.data <- ProvDataRcmd()
+    table.data <- table.data[c("province", paste0("covered_", input$kpi1.rcmd))]
+    colnames(table.data) <- c("index", "Covered")
     
-    ordering <- arrange(plot.data, -`Covered`)$index
-    plot.data <- melt(plot.data, id.vars = "index", variable.name = "省份") %>% 
+    ordering <- arrange(table.data, -`Covered`)$index
+    table.data <- melt(table.data, id.vars = "index", variable.name = "省份") %>% 
       dcast(`省份`~index, value.var = "value") %>% 
       select("省份", ordering)
-    
-    plot.data
-  })
-  
-  output$HospitalTableRcmd <- DT::renderDataTable({
-    if (is.null(ProvTable1Rcmd()))
-      return(NULL)
     
     if (input$kpi1 == "fte") {
       dgt = 2
@@ -1843,7 +1878,7 @@ server <- function(input, output, session) {
     }
     
     DT::datatable(
-      ProvTable1Rcmd(),
+      table.data,
       rownames = FALSE,
       # extensions = c('FixedColumns', 'Buttons'),
       #filter = 'bottom',
@@ -1890,47 +1925,54 @@ server <- function(input, output, session) {
       )
   })
   
+  output$HospitalTableRcmd <- DT::renderDataTable({
+    ProvTable1Rcmd()
+  })
+  
   ## recommendation plot2 ----
   ProvPlot2Rcmd <- reactive({
-    if (is.null(ProvDataRcmd()) | is.null(input$kpi2.rcmd))
-      return(NULL)
-    if (nrow(ProvDataRcmd()) == 0)
-      return(NULL)
-    
-    plot.data <- ProvDataRcmd()
-    plot.data <- plot.data[c("province", paste0("covered_", input$kpi2.rcmd))]
-    colnames(plot.data) <- c("x", "y")
-    plot.data <- arrange(plot.data, -y)
-    
-    plot1 <- plot_ly(hoverinfo = "name+x+y")
-    
-    plot1 <- plot1 %>% 
-      add_trace(x = plot.data$x,
-                y = plot.data$y,
-                type = "scatter",
-                mode = "lines",
-                name = "Covered",
-                color = I(options()$covered.color)) %>% 
-      layout(
-        showlegend = TRUE,
-        xaxis = list(
-          type = "category",
-          categoryorder = "array",
-          categoryarray = ~plot.data$x,
-          showgrid = FALSE,
-          title = "",
-          mirror = "ticks"
-        ),
-        yaxis = list(
-          showticklabels = TRUE,
-          tickformat = ",",
-          hoverformat = ",.2f",
-          title = "",
-          mirror = "ticks"
+    input$go
+    isolate({
+      if (is.null(ProvDataRcmd()) | is.null(input$kpi2.rcmd))
+        return(NULL)
+      if (nrow(ProvDataRcmd()) == 0)
+        return(NULL)
+      
+      plot.data <- ProvDataRcmd()
+      plot.data <- plot.data[c("province", paste0("covered_", input$kpi2.rcmd))]
+      colnames(plot.data) <- c("x", "y")
+      plot.data <- arrange(plot.data, -y)
+      
+      plot1 <- plot_ly(hoverinfo = "name+x+y")
+      
+      plot1 <- plot1 %>% 
+        add_trace(x = plot.data$x,
+                  y = plot.data$y,
+                  type = "scatter",
+                  mode = "lines",
+                  name = "Covered",
+                  color = I(options()$covered.color)) %>% 
+        layout(
+          showlegend = TRUE,
+          xaxis = list(
+            type = "category",
+            categoryorder = "array",
+            categoryarray = ~plot.data$x,
+            showgrid = FALSE,
+            title = "",
+            mirror = "ticks"
+          ),
+          yaxis = list(
+            showticklabels = TRUE,
+            tickformat = ",",
+            hoverformat = ",.2f",
+            title = "",
+            mirror = "ticks"
+          )
         )
-      )
-    
-    plot1
+      
+      plot1
+    })
   })
   
   output$IndexPlotRcmd <- renderPlotly({
@@ -1944,24 +1986,17 @@ server <- function(input, output, session) {
     if (nrow(ProvDataRcmd()) == 0)
       return(NULL)
     
-    plot.data <- ProvDataRcmd()
-    plot.data <- plot.data[c("province", paste0("covered_", input$kpi2.rcmd))]
-    colnames(plot.data) <- c("index", "Covered")
+    table.data <- ProvDataRcmd()
+    table.data <- table.data[c("province", paste0("covered_", input$kpi2.rcmd))]
+    colnames(table.data) <- c("index", "Covered")
     
-    ordering <- arrange(plot.data, -`Covered`)$index
-    plot.data <- melt(plot.data, id.vars = "index", variable.name = "省份") %>% 
+    ordering <- arrange(table.data, -`Covered`)$index
+    table.data <- melt(table.data, id.vars = "index", variable.name = "省份") %>% 
       dcast(`省份`~index, value.var = "value") %>% 
       select("省份", ordering)
     
-    plot.data
-  })
-  
-  output$IndexTableRcmd <- DT::renderDataTable({
-    if (is.null(ProvTable2Rcmd()))
-      return(NULL)
-    
     DT::datatable(
-      ProvTable2Rcmd(),
+      table.data,
       rownames = FALSE,
       # extensions = c('FixedColumns', 'Buttons'),
       #filter = 'bottom',
@@ -2008,134 +2043,137 @@ server <- function(input, output, session) {
       )
   })
   
+  output$IndexTableRcmd <- DT::renderDataTable({
+    ProvTable2Rcmd()
+  })
+  
   ## dimension ----
   DimensionData <- reactive({
-    if (is.null(CalcData()) | is.null(input$dimension)) {
-      return(NULL)
-    }
-    
-    if (is.na(input$kPotnCtrb)) {
-      kProp <- 0
-    } else {
-      kProp <- input$kPotnCtrb
-    }
-    
-    total.data.m <- raw() %>% 
-      distinct() %>% 
-      filter(sku %in% input$sku) %>% 
-      mutate(freq = ifelse(sku == "Gly",
-                           doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
-                           ifelse(sku == "Pentasa SUP",
-                                  doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
-                                  ifelse(sku == "Pentasa TAB",
-                                         doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
-                                         0)))) %>% 
-      group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
-      summarise(freq = sum(freq, na.rm = TRUE),
-                potential0 = sum(potential0, na.rm = TRUE),
-                potential1 = sum(potential1, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      arrange(-potential0) %>% 
-      mutate(potential0_cumsum = cumsum(potential0),
-             potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
-             fte = freq / 8 * 12 / 185,
-             cost = fte * 70000,
-             productivity = target / fte,
-             productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
-                                   0,
-                                   productivity),
-             roi = (target - cost) / cost,
-             growth = potential1 / potential0 - 1,
-             growth = ifelse(is.na(growth),
-                             0,
-                             growth))
-    
-    total.data <- filter(total.data.m, flag == 0) %>% 
-      filter(potential0_cumctrb <= kProp,
-             !(province %in% input$aban))
-    
-    if (is.na(input$productivity)) {
-      covered.data <- total.data
-    } else {
-      covered.data <- total.data[which(total.data$productivity >= input$productivity), ]
-    }
-    
-    if (is.na(input$growth)) {
-      covered.data <- covered.data
-    } else {
-      covered.data <- covered.data[which(covered.data$growth >= input$growth/100), ]
-    }
-    
-    table.data <- covered.data %>% 
-      bind_rows(filter(total.data.m, flag == 1)) %>% 
-      group_by_at(vars(one_of(c(input$dimension, "hospital")))) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE)) %>% 
-      ungroup() %>% 
-      group_by_at(vars(one_of(input$dimension))) %>% 
-      summarise(fte = sum(fte, na.rm = TRUE),
-                cost = sum(cost, na.rm = TRUE),
-                target = sum(target, na.rm = TRUE),
-                hosp_num = n()) %>% 
-      ungroup() %>% 
-      mutate(roi = (target - cost) / cost * 100,
-             roi = paste0(round(roi, 1), "%"),
-             fte = round(fte, 1)) %>% 
-      arrange(-fte) %>% 
-      select(input$dimension, 
-             "Hospital#" = "hosp_num", 
-             "FTE" = "fte", 
-             "ROI" = "roi")
-    
-    name.mapping <- data.frame(name0 = c("sku", "province", "city", "tier", "hosp_level"),
-                               name1 = c("SKU", "Province", "City", "City tier", "Hospital level"),
-                               stringsAsFactors = FALSE)
-    
-    for (i in input$dimension) {
-      if (length(colnames(table.data)[which(colnames(table.data) == i)]) == 1) {
-        colnames(table.data)[which(colnames(table.data) == i)] <- name.mapping$name1[which(name.mapping$name0 == i)]
+    input$go
+    isolate({
+      if (is.null(CalcData()) | is.null(input$dimension)) {
+        return(NULL)
       }
-    }
-    
-    table.data
+      
+      if (is.na(input$kPotnCtrb)) {
+        kProp <- 0
+      } else {
+        kProp <- input$kPotnCtrb
+      }
+      
+      total.data.m <- raw() %>% 
+        distinct() %>% 
+        filter(sku %in% input$sku) %>% 
+        mutate(freq = ifelse(sku == "Gly",
+                             doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
+                             ifelse(sku == "Pentasa SUP",
+                                    doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                    ifelse(sku == "Pentasa TAB",
+                                           doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
+                                           0)))) %>% 
+        group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
+        summarise(freq = sum(freq, na.rm = TRUE),
+                  potential0 = sum(potential0, na.rm = TRUE),
+                  potential1 = sum(potential1, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        arrange(-potential0) %>% 
+        mutate(potential0_cumsum = cumsum(potential0),
+               potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
+               fte = freq / 8 * 12 / 185,
+               cost = fte * 70000,
+               productivity = target / fte,
+               productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
+                                     0,
+                                     productivity),
+               roi = (target - cost) / cost,
+               growth = potential1 / potential0 - 1,
+               growth = ifelse(is.na(growth),
+                               0,
+                               growth))
+      
+      total.data <- filter(total.data.m, flag == 0) %>% 
+        filter(potential0_cumctrb <= kProp,
+               !(province %in% input$aban))
+      
+      if (is.na(input$productivity)) {
+        covered.data <- total.data
+      } else {
+        covered.data <- total.data[which(total.data$productivity >= input$productivity), ]
+      }
+      
+      if (is.na(input$growth)) {
+        covered.data <- covered.data
+      } else {
+        covered.data <- covered.data[which(covered.data$growth >= input$growth/100), ]
+      }
+      
+      table.data <- covered.data %>% 
+        bind_rows(filter(total.data.m, flag == 1)) %>% 
+        group_by_at(vars(one_of(c(input$dimension, "hospital")))) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        group_by_at(vars(one_of(input$dimension))) %>% 
+        summarise(fte = sum(fte, na.rm = TRUE),
+                  cost = sum(cost, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE),
+                  hosp_num = n()) %>% 
+        ungroup() %>% 
+        mutate(roi = (target - cost) / cost * 100,
+               roi = paste0(round(roi, 1), "%"),
+               fte = round(fte, 1)) %>% 
+        arrange(-fte) %>% 
+        select(input$dimension, 
+               "Hospital#" = "hosp_num", 
+               "FTE" = "fte", 
+               "ROI" = "roi")
+      
+      name.mapping <- data.frame(name0 = c("sku", "province", "city", "tier", "hosp_level"),
+                                 name1 = c("SKU", "Province", "City", "City tier", "Hospital level"),
+                                 stringsAsFactors = FALSE)
+      
+      for (i in input$dimension) {
+        if (length(colnames(table.data)[which(colnames(table.data) == i)]) == 1) {
+          colnames(table.data)[which(colnames(table.data) == i)] <- name.mapping$name1[which(name.mapping$name0 == i)]
+        }
+      }
+      
+      DT::datatable(
+        table.data,
+        rownames = FALSE,
+        # extensions = c('FixedColumns', 'Buttons'),
+        #filter = 'bottom',
+        ##### this sentence need to be changed when new variables added
+        options = list(
+          # dom = '<"bottom">Bfrtpl',
+          # buttons = I('colvis'),
+          columnDefs = list(
+            list(
+              className = 'dt-center',
+              targets = '_all'
+            )
+          ),
+          initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
+            "}"
+          ),
+          paging = TRUE,
+          scrollX = FALSE,
+          searching = FALSE,
+          ordering = FALSE,
+          pageLength = 30,
+          lengthChange = FALSE,
+          bInfo = FALSE
+        )
+      )
+    })
   })
   
   output$DimensionTable <- DT::renderDataTable({
-    if (is.null(DimensionData())) {
-      return(NULL)
-    }
-    
-    DT::datatable(
-      DimensionData(),
-      rownames = FALSE,
-      # extensions = c('FixedColumns', 'Buttons'),
-      #filter = 'bottom',
-      ##### this sentence need to be changed when new variables added
-      options = list(
-        # dom = '<"bottom">Bfrtpl',
-        # buttons = I('colvis'),
-        columnDefs = list(
-          list(
-            className = 'dt-center',
-            targets = '_all'
-          )
-        ),
-        initComplete = JS(
-          "function(settings, json) {",
-          "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
-          "}"
-        ),
-        paging = TRUE,
-        scrollX = FALSE,
-        searching = FALSE,
-        ordering = FALSE,
-        pageLength = 30,
-        lengthChange = FALSE,
-        bInfo = FALSE
-      )
-    )
+    DimensionData()
   })
   
   ## evaluation ----
@@ -2270,7 +2308,7 @@ server <- function(input, output, session) {
                        growth = kGrowth)
   })
   
-  Scenario1 <- reactive({
+  Scenario1 <- eventReactive(input$record1, {
     if (is.null(CalcData())) {
       return(NULL)
     }
@@ -2319,7 +2357,7 @@ server <- function(input, output, session) {
          "scenario_aggr" = scenario_aggr)
   })
   
-  Scenario2 <- reactive({
+  Scenario2 <- eventReactive(input$record2, {
     if (is.null(CalcData())) {
       return(NULL)
     }
