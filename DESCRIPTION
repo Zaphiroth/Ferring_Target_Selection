@@ -4,7 +4,7 @@ Title: Ferring Shiny Tools
 Version: 0.1.0
 Author: Zed Liu
 Maintainer: Zed Liu <zliu@pharbers.com>
-Description: Shiny tools for Ferring made by Zed Liu <zliu@pharbers.com>
+Description: Shiny tools for Ferring made by Zed Liu <zliu@pharbers.com>.
 License: file LICENSE
 Encoding: UTF-8
 LazyData: true
