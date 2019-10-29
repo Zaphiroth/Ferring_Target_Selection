@@ -82,6 +82,10 @@ server <- function(input, output, session) {
     dtbt
   })
   
+  toggleState("go", !is.null(input$raw))
+  toggleState("record1", !is.null(input$raw))
+  toggleState("record2", !is.null(input$raw))
+  
   ## sku ----
   observeEvent(raw(), {
     updateSelectInput(session,
@@ -865,7 +869,7 @@ server <- function(input, output, session) {
   
   ## plot1 ----
   ProvPlot1 <- reactive({
-    input$go
+    c(input$go, input$productivity, input$growth, input$kpi1)
     isolate({
       if (is.null(ProvData()) | is.null(input$kpi1))
         return(NULL)
@@ -991,7 +995,7 @@ server <- function(input, output, session) {
   
   ## table1 ----
   ProvTable1 <- reactive({
-    input$go
+    c(input$go, input$productivity, input$growth, input$kpi1)
     isolate({
       if (is.null(ProvData()) | is.null(input$kpi1))
         return(NULL)
@@ -1399,7 +1403,7 @@ server <- function(input, output, session) {
   
   ## recommendation concentration curve ----
   ConcPlotRcmd <- reactive({
-    input$go
+    c(input$go, input$scenario)
     isolate({
       if (is.null(CalcDataRcmd()))
         return(NULL)
@@ -1473,7 +1477,7 @@ server <- function(input, output, session) {
   
   ## recommendation segmentation ----
   SegDataRcmd <- reactive({
-    input$go
+    c(input$go, input$scenario)
     isolate({
       if (is.null(CalcDataRcmd()))
         return(NULL)
@@ -1798,7 +1802,7 @@ server <- function(input, output, session) {
   
   ## recommendation plot1 ----
   ProvPlot1Rcmd <- reactive({
-    input$go
+    c(input$go, input$scenario, input$kpi1.rcmd)
     isolate({
       if (is.null(ProvDataRcmd()) | is.null(input$kpi1.rcmd))
         return(NULL)
@@ -1857,72 +1861,75 @@ server <- function(input, output, session) {
   
   ## recommendation table1 ----
   ProvTable1Rcmd <- reactive({
-    if (is.null(ProvDataRcmd()) | is.null(input$kpi1.rcmd))
-      return(NULL)
-    if (nrow(ProvDataRcmd()) == 0)
-      return(NULL)
-    
-    table.data <- ProvDataRcmd()
-    table.data <- table.data[c("province", paste0("covered_", input$kpi1.rcmd))]
-    colnames(table.data) <- c("index", "Covered")
-    
-    ordering <- arrange(table.data, -`Covered`)$index
-    table.data <- melt(table.data, id.vars = "index", variable.name = "省份") %>% 
-      dcast(`省份`~index, value.var = "value") %>% 
-      select("省份", ordering)
-    
-    if (input$kpi1 == "fte") {
-      dgt = 2
-    } else {
-      dgt = 0
-    }
-    
-    DT::datatable(
-      table.data,
-      rownames = FALSE,
-      # extensions = c('FixedColumns', 'Buttons'),
-      #filter = 'bottom',
-      ##### this sentence need to be changed when new variables added
-      options = list(
-        # dom = '<"bottom">Bfrtpl',
-        # buttons = I('colvis'),
-        columnDefs = list(
-          list(
-            className = 'dt-center',
-            targets = '_all'
-          )
-        ),
-        initComplete = JS(
-          "function(settings, json) {",
-          "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
-          "}"
-        ),
-        paging = FALSE,
-        scrollX = FALSE,
-        searching = FALSE,
-        ordering = FALSE,
-        pageLength = 5,
-        lengthChange = FALSE,
-        bInfo = FALSE
-      )
-    ) %>% 
-      formatStyle(
-        "省份",
-        color = options()$table.color,
-        fontWeight = "bold"
+    c(input$go, input$scenario, input$kpi1.rcmd)
+    isolate({
+      if (is.null(ProvDataRcmd()) | is.null(input$kpi1.rcmd))
+        return(NULL)
+      if (nrow(ProvDataRcmd()) == 0)
+        return(NULL)
+      
+      table.data <- ProvDataRcmd()
+      table.data <- table.data[c("province", paste0("covered_", input$kpi1.rcmd))]
+      colnames(table.data) <- c("index", "Covered")
+      
+      ordering <- arrange(table.data, -`Covered`)$index
+      table.data <- melt(table.data, id.vars = "index", variable.name = "省份") %>% 
+        dcast(`省份`~index, value.var = "value") %>% 
+        select("省份", ordering)
+      
+      if (input$kpi1 == "fte") {
+        dgt = 2
+      } else {
+        dgt = 0
+      }
+      
+      DT::datatable(
+        table.data,
+        rownames = FALSE,
+        # extensions = c('FixedColumns', 'Buttons'),
+        #filter = 'bottom',
+        ##### this sentence need to be changed when new variables added
+        options = list(
+          # dom = '<"bottom">Bfrtpl',
+          # buttons = I('colvis'),
+          columnDefs = list(
+            list(
+              className = 'dt-center',
+              targets = '_all'
+            )
+          ),
+          initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
+            "}"
+          ),
+          paging = FALSE,
+          scrollX = FALSE,
+          searching = FALSE,
+          ordering = FALSE,
+          pageLength = 5,
+          lengthChange = FALSE,
+          bInfo = FALSE
+        )
       ) %>% 
-      # formatStyle(
-      #   "省份",
-      #   target = "row",
-      #   color = styleEqual("Total", options()$table.color),
-      #   fontWeight = styleEqual("Total", "bold")
-      # ) %>% 
-      formatRound(
-        columns = TRUE,
-        digits = dgt
-        # interval = 3,
-        # mark = ","
-      )
+        formatStyle(
+          "省份",
+          color = options()$table.color,
+          fontWeight = "bold"
+        ) %>% 
+        # formatStyle(
+        #   "省份",
+        #   target = "row",
+        #   color = styleEqual("Total", options()$table.color),
+        #   fontWeight = styleEqual("Total", "bold")
+        # ) %>% 
+        formatRound(
+          columns = TRUE,
+          digits = dgt
+          # interval = 3,
+          # mark = ","
+        )
+    })
   })
   
   output$HospitalTableRcmd <- DT::renderDataTable({
@@ -1931,7 +1938,7 @@ server <- function(input, output, session) {
   
   ## recommendation plot2 ----
   ProvPlot2Rcmd <- reactive({
-    input$go
+    c(input$go, input$scenario, input$kpi2.rcmd)
     isolate({
       if (is.null(ProvDataRcmd()) | is.null(input$kpi2.rcmd))
         return(NULL)
@@ -1964,7 +1971,7 @@ server <- function(input, output, session) {
           ),
           yaxis = list(
             showticklabels = TRUE,
-            tickformat = ",",
+            # tickformat = ",",
             hoverformat = ",.2f",
             title = "",
             mirror = "ticks"
@@ -1981,66 +1988,69 @@ server <- function(input, output, session) {
   
   ## recommendation table2 ----
   ProvTable2Rcmd <- reactive({
-    if (is.null(ProvDataRcmd()) | is.null(input$kpi2.rcmd))
-      return(NULL)
-    if (nrow(ProvDataRcmd()) == 0)
-      return(NULL)
-    
-    table.data <- ProvDataRcmd()
-    table.data <- table.data[c("province", paste0("covered_", input$kpi2.rcmd))]
-    colnames(table.data) <- c("index", "Covered")
-    
-    ordering <- arrange(table.data, -`Covered`)$index
-    table.data <- melt(table.data, id.vars = "index", variable.name = "省份") %>% 
-      dcast(`省份`~index, value.var = "value") %>% 
-      select("省份", ordering)
-    
-    DT::datatable(
-      table.data,
-      rownames = FALSE,
-      # extensions = c('FixedColumns', 'Buttons'),
-      #filter = 'bottom',
-      ##### this sentence need to be changed when new variables added
-      options = list(
-        # dom = '<"bottom">Bfrtpl',
-        # buttons = I('colvis'),
-        columnDefs = list(
-          list(
-            className = 'dt-center',
-            targets = '_all'
-          )
-        ),
-        initComplete = JS(
-          "function(settings, json) {",
-          "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
-          "}"
-        ),
-        paging = FALSE,
-        scrollX = FALSE,
-        searching = FALSE,
-        ordering = FALSE,
-        pageLength = 5,
-        lengthChange = FALSE,
-        bInfo = FALSE
-      )
-    ) %>% 
-      formatStyle(
-        "省份",
-        color = options()$table.color,
-        fontWeight = "bold"
+    c(input$go, input$scenario, input$kpi1.rcmd)
+    isolate({
+      if (is.null(ProvDataRcmd()) | is.null(input$kpi2.rcmd))
+        return(NULL)
+      if (nrow(ProvDataRcmd()) == 0)
+        return(NULL)
+      
+      table.data <- ProvDataRcmd()
+      table.data <- table.data[c("province", paste0("covered_", input$kpi2.rcmd))]
+      colnames(table.data) <- c("index", "Covered")
+      
+      ordering <- arrange(table.data, -`Covered`)$index
+      table.data <- melt(table.data, id.vars = "index", variable.name = "省份") %>% 
+        dcast(`省份`~index, value.var = "value") %>% 
+        select("省份", ordering)
+      
+      DT::datatable(
+        table.data,
+        rownames = FALSE,
+        # extensions = c('FixedColumns', 'Buttons'),
+        #filter = 'bottom',
+        ##### this sentence need to be changed when new variables added
+        options = list(
+          # dom = '<"bottom">Bfrtpl',
+          # buttons = I('colvis'),
+          columnDefs = list(
+            list(
+              className = 'dt-center',
+              targets = '_all'
+            )
+          ),
+          initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'background-color': '#3C8DBC', 'color': '#fff'});",
+            "}"
+          ),
+          paging = FALSE,
+          scrollX = FALSE,
+          searching = FALSE,
+          ordering = FALSE,
+          pageLength = 5,
+          lengthChange = FALSE,
+          bInfo = FALSE
+        )
       ) %>% 
-      # formatStyle(
-      #   "省份",
-      #   target = "row",
-      #   color = styleEqual("Total", options()$table.color),
-      #   fontWeight = styleEqual("Total", "bold")
-      # ) %>% 
-      formatRound(
-        columns = TRUE,
-        digits = 2
-        # interval = 3,
-        # mark = ","
-      )
+        formatStyle(
+          "省份",
+          color = options()$table.color,
+          fontWeight = "bold"
+        ) %>% 
+        # formatStyle(
+        #   "省份",
+        #   target = "row",
+        #   color = styleEqual("Total", options()$table.color),
+        #   fontWeight = styleEqual("Total", "bold")
+        # ) %>% 
+        formatRound(
+          columns = TRUE,
+          digits = 2
+          # interval = 3,
+          # mark = ","
+        )
+    })
   })
   
   output$IndexTableRcmd <- DT::renderDataTable({
@@ -2049,7 +2059,7 @@ server <- function(input, output, session) {
   
   ## dimension ----
   DimensionData <- reactive({
-    input$go
+    c(input$go, input$dimension)
     isolate({
       if (is.null(CalcData()) | is.null(input$dimension)) {
         return(NULL)
@@ -2140,7 +2150,7 @@ server <- function(input, output, session) {
         }
       }
       
-      DT::datatable(
+      t <- DT::datatable(
         table.data,
         rownames = FALSE,
         # extensions = c('FixedColumns', 'Buttons'),
@@ -2169,11 +2179,14 @@ server <- function(input, output, session) {
           bInfo = FALSE
         )
       )
+      
+      list(table = t,
+           data = table.data)
     })
   })
   
   output$DimensionTable <- DT::renderDataTable({
-    DimensionData()
+    DimensionData()$table
   })
   
   ## evaluation ----
@@ -2452,15 +2465,9 @@ server <- function(input, output, session) {
              "Scenario Ⅱ" = "scenario2")
     
     evaluation <- left_join(evaluation2, evaluation1, by = "Index")
-  })
-  
-  output$EvaluationTable <- DT::renderDataTable({
-    if (is.null(Evaluation())) {
-      return(NULL)
-    }
     
     DT::datatable(
-      Evaluation(),
+      evaluation,
       rownames = FALSE,
       options = list(
         columnDefs = list(
@@ -2485,6 +2492,10 @@ server <- function(input, output, session) {
         "Index",
         fontWeight = "bold"
       )
+  })
+  
+  output$EvaluationTable <- DT::renderDataTable({
+    Evaluation()
   })
   
   ## download ----
@@ -2906,7 +2917,7 @@ server <- function(input, output, session) {
     },
     
     content = function(file) {
-      total.data <- DimensionData()
+      total.data <- DimensionData()$data
       
       write.csv(total.data, file, row.names = FALSE, fileEncoding = "GB2312")
     }
