@@ -44,6 +44,7 @@ ui <- dashboardPage(
           # tags$head(tags$style(".progress-bar{background-color:#00a65a;}")),
           fileInput("raw", label = "Upload Raw Data"),
           fileInput("dtbt", label = "Upload Distribution Data"),
+          fileInput("fte_rules", label = "Upload FTE Rules"),
           numericInput("kPotnCtrb", label = "Potential Cumulated Con. (%)", value = NULL, min = 0, max = 100),
           selectInput("growth_share", label = "Growth Rate or Market Share", choices = c("Growth Rate", "Market Share"), multiple = FALSE),
           conditionalPanel(condition = "input.growth_share == 'Growth Rate'",
@@ -52,6 +53,7 @@ ui <- dashboardPage(
                            numericInput("kShare", label = "Market Share (%)", value = NULL, min = 0, max = 100)),
           selectInput("sku", label = "Selection SKU", choices = "", multiple = TRUE),
           selectInput("aban", label = "Abandoned Provinces", choices = "", multiple = TRUE),
+          checkboxInput("cover", label = "Only cover A", value = TRUE),
           br(),
           fluidRow(
             tags$div(column(4, actionButton("go", "Go", width = "60px", style = "color:#000;")),
@@ -84,7 +86,7 @@ ui <- dashboardPage(
             solidHeader = TRUE,
             collapsible = FALSE,
             width = 5,
-            tags$div(plotlyOutput("Conc", height = "638px"))
+            tags$div(plotlyOutput("Conc", height = "598px"))
           ),
           
           box(
@@ -99,7 +101,7 @@ ui <- dashboardPage(
                        style = "text-align:center; margin-top:200px;",
                        class = "text-vertical"),
               tags$div(strong(textOutput("seg.h2")),
-                       style = "text-align:center; margin-top:260px;",
+                       style = "text-align:center; margin-top:240px;",
                        class = "text-vertical")
             ),
             column(
@@ -243,219 +245,8 @@ ui <- dashboardPage(
                 tags$div(plotlyOutput("SharePlot"))
               )
             )
-            # br(),
-            # fluidRow(
-            #   box(
-            #     solidHeader = TRUE,
-            #     collapsible = FALSE,
-            #     width = 12,
-            #     tags$div(
-            #       # column(3, numericInput("productivity", label = "Productivity lowest limit by year", value = 0, min = 0)),
-            #       # column(3, numericInput("roi", label = "ROI lowest limit by year", value = 0, min = 0)),
-            #       # column(3, numericInput("growth", label = "Product sales growth rate lowest limit by year", value = 0, min = 0)),
-            #       # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
-            #       #                       selected = "All", multiple = TRUE)),
-            #       column(9),
-            #       column(3, selectInput("kpi2", label = "KPI", 
-            #                             choices = c("Avg. Productivity" = "productivity", "ROI" = "roi"), 
-            #                             selected = "Avg. Productivity", multiple = FALSE))
-            #     ),
-            #     style = "background:#C8E6FF;"
-            #   )
-            # ),
-            # br(),
-            # fluidRow(
-            #   box(
-            #     solidHeader = TRUE,
-            #     collapsible = FALSE,
-            #     width = 12,
-            #     tags$div(plotlyOutput("IndexPlot", height = "250px")),
-            #     tags$div(DT::dataTableOutput("IndexTable"),
-            #              style = "font-size:90%; overflow-x:scroll;",
-            #              class = "nowrap")
-            #   )
-            # )
           )
         )
-      ),
-      
-      tabPanel(
-        strong("Recommendation"),
-        value = "2",
-        
-        br(),
-        fluidRow(
-          box(
-            solidHeader = TRUE,
-            collapsible = FALSE,
-            width = 12,
-            tags$div(
-              column(3, selectInput("scenario", label = "Scenario", choices = c("Max ROI", "All Standing"), 
-                                    selected = "Max Return", multiple = FALSE)),
-              column(7),
-              column(2,
-                     br(),
-                     tags$div(downloadButton(outputId = "DownloadRcmd", label = "Download", style = "width:100px; color:#000;"),
-                              style = "display:inline-block; width:100%; text-align:center;"))
-            ),
-            style = "background:#C8E6FF;"
-          )
-        ),
-        
-        # br(),
-        fluidRow(
-          box(
-            title = "Concentration Curve",
-            status = "primary",
-            solidHeader = TRUE,
-            collapsible = FALSE,
-            width = 5,
-            tags$div(plotlyOutput("ConcRcmd", height = "604px"))
-          ),
-          
-          box(
-            title = "Hospital Segmentation",
-            status = "primary",
-            solidHeader = TRUE,
-            collapsible = FALSE,
-            width = 7,
-            column(
-              1,
-              tags$div(strong(textOutput("segRcmd.h1")),
-                       style = "text-align:center; margin-top:200px;",
-                       class = "text-vertical"),
-              tags$div(strong(textOutput("segRcmd.h2")),
-                       style = "text-align:center; margin-top:260px;",
-                       class = "text-vertical")
-              # tags$div(strong(textOutput("segRcmd.h")),
-              #          style = "text-align:center; margin-top:300px;",
-              #          class = "text-vertical")
-            ),
-            column(
-              11,
-              fluidRow(
-                tags$div(strong(textOutput("segRcmd.v")),
-                         style = "text-align:center;")
-              ),
-              br(),
-              box(
-                title = "C",
-                status = "primary",
-                solidHeader = TRUE,
-                collapsible = FALSE,
-                width = 6,
-                style = options()$seg.style,
-                tags$div(DT::dataTableOutput("TableCRcmd", height = "200px"),
-                         style = "font-size:90%;")
-              ),
-              box(
-                title = "A",
-                status = "primary",
-                solidHeader = TRUE,
-                collapsible = FALSE,
-                width = 6,
-                style = options()$seg.style,
-                tags$div(DT::dataTableOutput("TableARcmd", height = "200px"),
-                         style = "font-size:90%;")
-              ),
-              box(
-                title = "D",
-                status = "primary",
-                solidHeader = TRUE,
-                collapsible = FALSE,
-                width = 6,
-                style = options()$seg.style,
-                tags$div(DT::dataTableOutput("TableDRcmd", height = "200px"),
-                         style = "font-size:90%;")
-              ),
-              box(
-                title = "B",
-                status = "primary",
-                solidHeader = TRUE,
-                collapsible = FALSE,
-                width = 6,
-                style = options()$seg.style,
-                tags$div(DT::dataTableOutput("TableBRcmd", height = "200px"),
-                         style = "font-size:90%;")
-              )
-            )
-          )
-        ),
-        
-        # br(),
-        fluidRow(
-          box(
-            title = "Analysis of the results of hospital selection",
-            status = "primary",
-            solidHeader = TRUE,
-            collapsible = FALSE,
-            width = 12,
-            fluidRow(
-              box(
-                solidHeader = TRUE,
-                collapsible = FALSE,
-                width = 12,
-                tags$div(
-                  # column(3, numericInput("productivity", label = "Productivity lowest limit by year", value = 0, min = 0)),
-                  # column(3, numericInput("roi", label = "ROI lowest limit by year", value = 0, min = 0)),
-                  # column(3, numericInput("growth", label = "Product sales growth rate lowest limit by year", value = 0, min = 0)),
-                  # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
-                  #                       selected = "All", multiple = TRUE)),
-                  column(9),
-                  column(3, selectInput("kpi1.rcmd", label = "KPI", 
-                                        choices = c("Hospital#" = "hospital_num", "City#" = "city_num", "FTE#" = "fte"), 
-                                        selected = "Hospital#", multiple = FALSE))
-                ),
-                style = "background:#C8E6FF;"
-              )
-            ),
-            br(),
-            fluidRow(
-              box(
-                solidHeader = TRUE,
-                collapsible = FALSE,
-                width = 12,
-                tags$div(plotlyOutput("HospitalPlotRcmd", height = "250px")),
-                tags$div(DT::dataTableOutput("HospitalTableRcmd"),
-                         style = "font-size:90%; overflow-x:scroll;",
-                         class = "nowrap")
-              )
-            ),
-            # br(),
-            fluidRow(
-              box(
-                solidHeader = TRUE,
-                collapsible = FALSE,
-                width = 12,
-                tags$div(
-                  # column(3, numericInput("productivity", label = "Productivity lowest limit by year", value = 0, min = 0)),
-                  # column(3, numericInput("roi", label = "ROI lowest limit by year", value = 0, min = 0)),
-                  # column(3, numericInput("growth", label = "Product sales growth rate lowest limit by year", value = 0, min = 0)),
-                  # column(6, selectInput("region", label = "Region", choices = c("All", "北区", "东区", "南区", "中区"), 
-                  #                       selected = "All", multiple = TRUE)),
-                  column(9),
-                  column(3, selectInput("kpi2.rcmd", label = "KPI", 
-                                        choices = c("Avg. Productivity" = "productivity", "ROI" = "roi"), 
-                                        selected = "Avg. Productivity", multiple = FALSE))
-                ),
-                style = "background:#C8E6FF;"
-              )
-            ),
-            br(),
-            fluidRow(
-              box(
-                solidHeader = TRUE,
-                collapsible = FALSE,
-                width = 12,
-                tags$div(plotlyOutput("IndexPlotRcmd", height = "250px")),
-                tags$div(DT::dataTableOutput("IndexTableRcmd"),
-                         style = "font-size:90%; overflow-x:scroll;",
-                         class = "nowrap")
-              )
-            )
-          )
-        )
-        
       ),
       
       tabPanel(
@@ -470,7 +261,8 @@ ui <- dashboardPage(
             width = 12,
             tags$div(
               column(6, selectInput("dimension", label = "Dimension", 
-                                    choices = c("SKU" = "sku", "Province" = "province", "City" = "city", "City tier" = "tier", "Hospital level" = "hosp_level"),
+                                    choices = c("SKU" = "sku", "Province" = "province", "City" = "city", 
+                                                "City tier" = "tier", "Hospital level" = "hosp_level"),
                                     selected = c("sku", "province", "city", "tier", "hosp_level"), multiple = TRUE)),
               column(4),
               column(2, br(), 

@@ -25,7 +25,7 @@ library(readr)
 
 options(shiny.maxRequestSize = 1000 * 1024 ^ 2,
         seg.color = "#FFFFF0",
-        seg.style = "background:#FFFFF0; height:220px;",
+        seg.style = "background:#FFFFF0; height:200px;",
         marker.color = "#FF4500",
         square.color = "#FF4500",
         table.color = "#3C8DBC",
