@@ -82,10 +82,6 @@ server <- function(input, output, session) {
     dtbt
   })
   
-  toggleState("go", !is.null(input$raw))
-  toggleState("record1", !is.null(input$raw))
-  toggleState("record2", !is.null(input$raw))
-  
   ## sku ----
   observeEvent(raw(), {
     updateSelectInput(session,

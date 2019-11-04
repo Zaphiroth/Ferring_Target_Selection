@@ -20,7 +20,7 @@ library(shinyjs)
 library(webshot)
 library(leaflet)
 library(leafletCN)
-library(shinyWidgets)
+# library(shinyWidgets)
 library(readr)
 
 options(shiny.maxRequestSize = 1000 * 1024 ^ 2,
