@@ -173,9 +173,11 @@ server <- function(input, output, session) {
         unite("doc_seg", sku, decile, remove = FALSE, sep = "") %>% 
         left_join(rules()$doctor_num, by = "doc_seg") %>% 
         left_join(rules()$doctor_freq, by = "sku") %>% 
-        mutate(freq = num_a*freq_a + num_b*freq_b + num_c*freq_c + num_d*freq_d) %>% 
+        mutate(freq = num_a*freq_a + num_b*freq_b + num_c*freq_c + num_d*freq_d,
+               fte = freq / call * month / day) %>% 
         group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
         summarise(freq = sum(freq, na.rm = TRUE),
+                  fte = sum(fte, na.rm = TRUE),
                   potential0 = sum(potential0, na.rm = TRUE),
                   potential1 = sum(potential1, na.rm = TRUE),
                   target = sum(target, na.rm = TRUE)) %>% 
@@ -242,7 +244,7 @@ server <- function(input, output, session) {
             showline = FALSE,
             zeroline = TRUE,
             title = "",
-            hoverformat = ".2f",
+            hoverformat = ".0f",
             mirror = "ticks"
           )
         )
@@ -292,14 +294,13 @@ server <- function(input, output, session) {
       seg.data <- CalcData()$data2 %>% 
         bind_rows(CalcData()$data1) %>% 
         group_by(hospital, province, city, call, month, day, flag) %>% 
-        summarise(freq = sum(freq, na.rm = TRUE),
+        summarise(fte = sum(fte, na.rm = TRUE),
                   potential0 = sum(potential0, na.rm = TRUE),
                   potential1 = sum(potential1, na.rm = TRUE),
                   target = sum(target, na.rm = TRUE)) %>% 
         ungroup() %>% 
         mutate(potential0_cumsum = cumsum(potential0),
                potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
-               fte = freq / call * month / day,
                productivity = target / fte,
                productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
                                      0,
@@ -366,8 +367,8 @@ server <- function(input, output, session) {
         mutate(productivity = target / fte,
                hospital_num = format(hospital_num, big.mark = ","),
                city_num = format(city_num, big.mark = ","),
-               fte = format(round(fte,1), big.mark = ","),
-               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+               fte = format(round(fte, 1), big.mark = ","),
+               productivity = format(round(productivity, 0), big.mark = ",")) %>% 
         select("Number of Hospital" = "hospital_num",
                "Number of City" = "city_num",
                "FTE" = "fte",
@@ -385,8 +386,8 @@ server <- function(input, output, session) {
         mutate(productivity = target / fte,
                hospital_num = format(hospital_num, big.mark = ","),
                city_num = format(city_num, big.mark = ","),
-               fte = format(round(fte,1), big.mark = ","),
-               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+               fte = format(round(fte, 1), big.mark = ","),
+               productivity = format(round(productivity, 0), big.mark = ",")) %>% 
         select("Number of Hospital" = "hospital_num",
                "Number of City" = "city_num",
                "FTE" = "fte",
@@ -404,8 +405,8 @@ server <- function(input, output, session) {
         mutate(productivity = target / fte,
                hospital_num = format(hospital_num, big.mark = ","),
                city_num = format(city_num, big.mark = ","),
-               fte = format(round(fte,1), big.mark = ","),
-               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+               fte = format(round(fte, 1), big.mark = ","),
+               productivity = format(round(productivity, 0), big.mark = ",")) %>% 
         select("Number of Hospital" = "hospital_num",
                "Number of City" = "city_num",
                "FTE" = "fte",
@@ -423,8 +424,8 @@ server <- function(input, output, session) {
         mutate(productivity = target / fte) %>% 
         mutate(hospital_num = format(hospital_num, big.mark = ","),
                city_num = format(city_num, big.mark = ","),
-               fte = format(round(fte,1), big.mark = ","),
-               productivity = format(round(productivity, 1), big.mark = ",")) %>% 
+               fte = format(round(fte, 1), big.mark = ","),
+               productivity = format(round(productivity, 0), big.mark = ",")) %>% 
         select("Number of Hospital" = "hospital_num",
                "Number of City" = "city_num",
                "FTE" = "fte",
@@ -610,7 +611,24 @@ server <- function(input, output, session) {
       )
   })
   
-  ## actual plot1 ----
+  ## covered data
+  CoveredData <- reactive({
+    if (is.null(SegData())) {
+      return(NULL)
+    }
+    
+    if (input$cover == TRUE) {
+      covered.data <- SegData()$total %>% 
+        filter(segment == "A")
+    } else {
+      covered.data <- SegData()$total %>% 
+        filter(segment == "A" | segment == "B")
+    }
+    
+    covered.data
+  })
+  
+  ## actual plot ----
   ActualPlot1 <- reactive({
     input$go
     isolate({
@@ -655,8 +673,15 @@ server <- function(input, output, session) {
                   textposition = "outside",
                   color = I(options()$covered.color)) %>% 
         layout(
-          title = "2018 GU Territory Distribution by Value",
+          title = "GU Territory Distribution by Value",
           showlegend = FALSE,
+          margin = list(
+            l = 50,
+            r = 50,
+            b = 50,
+            t = 50,
+            pad = 4
+          ),
           # annotations = list(
           #   x = 0.9,
           #   y = 1,
@@ -687,19 +712,18 @@ server <- function(input, output, session) {
     ActualPlot1()
   })
   
-  ## actual plot2 ----
   observeEvent(input$go, {
     updateSelectInput(session,
-                      inputId = "actual.sku",
+                      inputId = "actual.sku1",
                       label = "Selection SKU",
                       choices = input$sku,
                       selected = input$sku)
   })
   
   ActualPlot2 <- reactive({
-    c(input$go, input$actual.sku)
+    c(input$go, input$actual.sku1)
     isolate({
-      if (is.null(CalcData()) | is.null(input$actual.sku)) {
+      if (is.null(CalcData()) | is.null(input$actual.sku1)) {
         return(NULL)
       }
       
@@ -711,7 +735,7 @@ server <- function(input, output, session) {
       
       plot.data <- CalcData()$data2 %>% 
         filter(is == "Y") %>% 
-        filter(sku %in% input$actual.sku) %>% 
+        filter(sku %in% input$actual.sku1) %>% 
         bind_rows(CalcData()$data1) %>% 
         group_by(decile) %>% 
         summarise(potential0 = sum(potential0, na.rm = TRUE),
@@ -743,7 +767,7 @@ server <- function(input, output, session) {
                   mode = "lines",
                   color = I(options()$share.color)) %>% 
         layout(
-          title = "2018 GU Market Share by Decile",
+          title = "GU Market Share by Decile",
           showlegend = TRUE,
           legend = list(
             # x = 0.215,
@@ -798,23 +822,97 @@ server <- function(input, output, session) {
     ActualPlot2()
   })
   
-  ## province data ----
-  CoveredData <- reactive({
-    if (is.null(SegData())) {
-      return(NULL)
-    }
-    
-    if (input$cover == TRUE) {
-      covered.data <- SegData()$total %>% 
-        filter(segment == "A")
-    } else {
-      covered.data <- SegData()$total %>% 
-        filter(segment == "A" | segment == "B")
-    }
-    
-    covered.data
+  observeEvent(input$go, {
+    updateSelectInput(session,
+                      inputId = "actual.sku2",
+                      label = "Selection SKU",
+                      choices = input$sku,
+                      selected = input$sku)
   })
   
+  ActualPlot3 <- reactive({
+    c(input$go, input$actual.sku2)
+    isolate({
+      if (is.null(CalcData()) | is.null(CoveredData()) | is.null(input$actual.sku2)) {
+        return(NULL)
+      }
+      
+      potential.data <- CalcData()$data2 %>% 
+        bind_rows(CalcData()$data1) %>% 
+        group_by(decile) %>% 
+        summarise(potential0 = sum(potential0, na.rm = TRUE)) %>% 
+        ungroup()
+      
+      plot.data <- CalcData()$data2 %>% 
+        filter(is == "Y") %>% 
+        filter(sku %in% input$actual.sku2) %>% 
+        bind_rows(CalcData()$data1) %>% 
+        group_by(decile) %>% 
+        summarise(target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        right_join(potential.data, by = "decile") %>% 
+        mutate(remain = potential0 - target,
+               decile = factor(decile,
+                               levels = c("D1", "D2", "D3", "D4", "D5", 
+                                          "D6", "D7", "D8", "D9", "D10"))) %>% 
+        arrange(decile)
+      plot.data[is.na(plot.data)] <- 0
+      
+      plot1 <- plot_ly(hoverinfo = "name+x+y")
+      
+      plot1 <- plot1 %>% 
+        add_trace(x = plot.data$decile,
+                  y = plot.data$remain,
+                  name = "Potential",
+                  type = "bar",
+                  color = I(options()$uncovered.color)) %>% 
+        add_trace(x = plot.data$decile,
+                  y = plot.data$target,
+                  name = "Covered target",
+                  type = "bar",
+                  color = I(options()$covered.color)) %>% 
+        layout(
+          barmode = "stack",
+          title = "Sales and Potential by Decile",
+          showlegend = TRUE,
+          legend = list(
+            y = 1.05,
+            orientation = "h"
+          ),
+          margin = list(
+            l = 50,
+            r = 50,
+            b = 50,
+            t = 50,
+            pad = 4
+          ),
+          xaxis = list(
+            title = "",
+            type = "category",
+            showticklabels = TRUE,
+            mirror = "ticks"
+          ),
+          yaxis = list(
+            title = "",
+            range = c(0, max(plot.data$potential0)*1.2),
+            zeroline = TRUE,
+            showgrid = TRUE,
+            showticklabels = TRUE,
+            # tickformat = ",",
+            hoverformat = ",.0f",
+            mirror = "ticks"
+          )
+        )
+      
+      plot1
+    })
+  })
+  
+  output$ActualPlot3 <- renderPlotly({
+    ActualPlot3()
+  })
+  
+  ## province data ----
   ProvData <- reactive({
     if (is.null(SegData()) | is.null(CoveredData())) {
       return(NULL)
@@ -838,7 +936,6 @@ server <- function(input, output, session) {
     actual.prov.data <- CalcData()$data2 %>% 
       filter(is == "Y") %>% 
       bind_rows(CalcData()$data1) %>% 
-      mutate(fte = freq / call * month / day) %>% 
       group_by(province, city, hospital) %>% 
       summarise(fte = sum(fte, na.rm = TRUE),
                 potential0 = sum(potential0, na.rm = TRUE),
@@ -938,7 +1035,7 @@ server <- function(input, output, session) {
     prov.data
   })
   
-  ## plot1 ----
+  ## plot ----
   ProvPlot1 <- reactive({
     c(input$go, input$productivity, input$growth, input$kpi1)
     isolate({
@@ -1038,7 +1135,7 @@ server <- function(input, output, session) {
             side = "right",
             showticklabels = TRUE,
             # tickformat = ",",
-            hoverformat = ",.2f",
+            hoverformat = ",.0f",
             showline = FALSE,
             showgrid = FALSE,
             zeroline = TRUE,
@@ -1052,7 +1149,7 @@ server <- function(input, output, session) {
         plot1 <- plot1 %>% 
           layout(
             yaxis = list(
-              hoverformat = ",.2f"
+              hoverformat = ",.1f"
             )
           )
       }
@@ -1065,7 +1162,7 @@ server <- function(input, output, session) {
     ProvPlot1()
   })
   
-  ## table1 ----
+  ## table ----
   ProvTable1 <- reactive({
     c(input$go, input$productivity, input$growth, input$kpi1)
     isolate({
@@ -1090,7 +1187,7 @@ server <- function(input, output, session) {
         select("省份", ordering)
       
       if (input$kpi1 == "fte") {
-        dgt = 2
+        dgt = 1
       } else {
         dgt = 0
       }
@@ -1145,16 +1242,16 @@ server <- function(input, output, session) {
   ## share plot ----
   observeEvent(input$go, {
     updateSelectInput(session,
-                      inputId = "covered.sku",
+                      inputId = "covered.sku1",
                       label = "Selection SKU",
                       choices = input$sku,
                       selected = input$sku)
   })
   
   SharePlot <- reactive({
-    c(input$go, input$covered.sku)
+    c(input$go, input$covered.sku1)
     isolate({
-      if (is.null(CoveredData()) | is.null(SegData()) | is.null(CalcData()) | is.null(input$covered.sku)) {
+      if (is.null(CoveredData()) | is.null(CalcData()) | is.null(input$covered.sku1)) {
         return(NULL)
       }
       
@@ -1167,7 +1264,7 @@ server <- function(input, output, session) {
       plot.data <- CalcData()$data2 %>% 
         bind_rows(CalcData()$data1) %>% 
         filter(hospital %in% CoveredData()$hospital) %>% 
-        filter(sku %in% input$covered.sku) %>% 
+        filter(sku %in% input$covered.sku1) %>% 
         group_by(decile) %>% 
         summarise(potential0 = sum(potential0, na.rm = TRUE),
                   target = sum(target, na.rm = TRUE)) %>% 
@@ -1227,7 +1324,7 @@ server <- function(input, output, session) {
             zeroline = TRUE,
             showgrid = TRUE,
             showticklabels = TRUE,
-            tickformat = ",",
+            # tickformat = ",",
             hoverformat = ",",
             mirror = "ticks"
           ),
@@ -1245,13 +1342,102 @@ server <- function(input, output, session) {
           )
         )
       
-      list("plot" = plot1,
-           "plot.data" = plot.data)
+      plot1
     })
   })
   
   output$SharePlot <- renderPlotly({
-    SharePlot()$plot
+    SharePlot()
+  })
+  
+  observeEvent(input$go, {
+    updateSelectInput(session,
+                      inputId = "covered.sku2",
+                      label = "Selection SKU",
+                      choices = input$sku,
+                      selected = input$sku)
+  })
+  
+  DecilePlot <- reactive({
+    c(input$go, input$covered.sku2)
+    isolate({
+      if (is.null(CalcData()) | is.null(CoveredData()) | is.null(input$covered.sku2)) {
+        return(NULL)
+      }
+      
+      potential.data <- CalcData()$data2 %>% 
+        bind_rows(CalcData()$data1) %>% 
+        group_by(decile) %>% 
+        summarise(potential0 = sum(potential0, na.rm = TRUE)) %>% 
+        ungroup()
+      
+      plot.data <- CalcData()$data2 %>% 
+        bind_rows(CalcData()$data1) %>% 
+        filter(hospital %in% CoveredData()$hospital) %>% 
+        filter(sku %in% input$covered.sku2) %>% 
+        group_by(decile) %>% 
+        summarise(target = sum(target, na.rm = TRUE)) %>% 
+        ungroup() %>% 
+        right_join(potential.data, by = "decile") %>% 
+        mutate(remain = potential0 - target,
+               decile = factor(decile,
+                               levels = c("D1", "D2", "D3", "D4", "D5", 
+                                          "D6", "D7", "D8", "D9", "D10"))) %>% 
+        arrange(decile)
+      plot.data[is.na(plot.data)] <- 0
+      
+      plot1 <- plot_ly(hoverinfo = "name+x+y")
+      
+      plot1 <- plot1 %>% 
+        add_trace(x = plot.data$decile,
+                  y = plot.data$remain,
+                  name = "Potential",
+                  type = "bar",
+                  color = I(options()$uncovered.color)) %>% 
+        add_trace(x = plot.data$decile,
+                  y = plot.data$target,
+                  name = "Covered target",
+                  type = "bar",
+                  color = I(options()$covered.color)) %>% 
+        layout(
+          barmode = "stack",
+          title = "Sales and Potential in Covered Hospitals",
+          showlegend = TRUE,
+          legend = list(
+            y = 1.05,
+            orientation = "h"
+          ),
+          margin = list(
+            l = 50,
+            r = 50,
+            b = 50,
+            t = 50,
+            pad = 4
+          ),
+          xaxis = list(
+            title = "",
+            type = "category",
+            showticklabels = TRUE,
+            mirror = "ticks"
+          ),
+          yaxis = list(
+            title = "",
+            range = c(0, max(plot.data$potential0)*1.2),
+            zeroline = TRUE,
+            showgrid = TRUE,
+            showticklabels = TRUE,
+            # tickformat = ",",
+            hoverformat = ",.0f",
+            mirror = "ticks"
+          )
+        )
+      
+      plot1
+    })
+  })
+  
+  output$DecilePlot <- renderPlotly({
+    DecilePlot()
   })
   
   ## dimension ----
@@ -1265,7 +1451,6 @@ server <- function(input, output, session) {
       table.data <- CalcData()$data2 %>% 
         bind_rows(CalcData()$data1) %>% 
         filter(hospital %in% CoveredData()$hospital) %>% 
-        mutate(fte = freq / call * month / day) %>% 
         group_by_at(vars(one_of(c(input$dimension, "hospital")))) %>% 
         summarise(fte = sum(fte, na.rm = TRUE),
                   target = sum(target, na.rm = TRUE)) %>% 
@@ -1347,7 +1532,6 @@ server <- function(input, output, session) {
       bind_rows(CalcData()$data1)
     
     actual_aggr <- actual %>% 
-      mutate(fte = freq / call * month / day) %>% 
       group_by(city) %>% 
       summarise(hospital_num = n(),
                 target = sum(target, na.rm = TRUE),
@@ -1631,89 +1815,20 @@ server <- function(input, output, session) {
     },
     
     content = function(file) {
-      if (is.na(input$kPotnCtrb)) {
-        kProp <- 0
-      } else {
-        kProp <- input$kPotnCtrb
-      }
+      seg.info <- SegData()$total %>% 
+        select(hospital, segment)
       
-      seg.data <- raw() %>% 
-        distinct() %>% 
-        filter(sku %in% input$sku) %>% 
-        mutate(freq = ifelse(sku == "Gly",
-                             doctor_a * 6 + doctor_b * 4 + doctor_c * 2 + doctor_d * 1,
-                             ifelse(sku == "Pentasa SUP",
-                                    doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
-                                    ifelse(sku == "Pentasa TAB",
-                                           doctor_a * 4 + doctor_b * 3 + doctor_c * 1 + doctor_d * 1,
-                                           0)))) %>% 
+      seg.data <- CalcData()$data2 %>% 
+        bind_rows(CalcData()$data1) %>% 
         group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
-        summarise(freq = sum(freq, na.rm = TRUE),
-                  potential0 = sum(potential0, na.rm = TRUE),
-                  potential1 = sum(potential1, na.rm = TRUE),
-                  target = sum(target, na.rm = TRUE)) %>% 
-        ungroup() %>% 
-        arrange(-potential0) %>% 
-        mutate(potential0_cumsum = cumsum(potential0),
-               potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
-               fte = freq / 8 * 12 / 185,
-               cost = fte * 70000,
-               productivity = target / fte,
-               productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
-                                     0,
-                                     productivity),
-               # roi = (target - cost) / cost,
-               growth = potential1 / potential0 - 1,
-               growth = ifelse(is.na(growth),
-                               0,
-                               growth))
-      
-      seg.data.m <- seg.data %>% 
-        filter(flag == 0) %>% 
-        filter(!(province %in% input$aban)) %>% 
-        bind_rows(filter(seg.data, flag == 1)) %>% 
-        mutate(market_share = target / potential0,
-               market_share = ifelse(is.na(market_share),
-                                     0,
-                                     market_share))
-      
-      if (input$growth_share == "Growth Rate") {
-        if (is.na(input$kGrowth)) {
-          kIndex <- -Inf
-        } else {
-          kIndex <- input$kGrowth/100
-        }
-        
-        seg.total <- seg.data %>% 
-          mutate(segment = ifelse(potential0_cumctrb <= kProp & growth >= kIndex,
-                                  "A",
-                                  ifelse(potential0_cumctrb <= kProp & growth < kIndex,
-                                         "B",
-                                         ifelse(potential0_cumctrb > kProp & growth >= kIndex,
-                                                "C",
-                                                ifelse(potential0_cumctrb > kProp & growth < kIndex,
-                                                       "D",
-                                                       "0")))))
-        
-      } else if (input$growth_share == "Market Share") {
-        if (is.na(input$kShare)) {
-          kIndex <- 0
-        } else {
-          kIndex <- input$kShare/100
-        }
-        
-        seg.total <- seg.data %>% 
-          mutate(segment = ifelse(potential0_cumctrb <= kProp & market_share >= kIndex,
-                                  "A",
-                                  ifelse(potential0_cumctrb <= kProp & market_share < kIndex,
-                                         "B",
-                                         ifelse(potential0_cumctrb > kProp & market_share >= kIndex,
-                                                "C",
-                                                ifelse(potential0_cumctrb > kProp & market_share < kIndex,
-                                                       "D",
-                                                       "0")))))
-        
-      }
+        summarise(potential0 = sum(potential0, na.rm = TRUE),
+                  target = sum(target, na.rm = TRUE),
+                  fte = sum(fte, na.rm = TRUE)) %>% 
+        left_join(seg.info, by = "hospital") %>% 
+        select("Sku" = "sku", "Hospital" = "hospital", "Hospital Level" = "hosp_level", 
+               "Decile" = "decile", "Province" = "province", "City" = "city", "Tier" = "tier", 
+               "Actiual target HP" = "is", "Flag" = "flag", "Potential" = "potential0", 
+               "Target" = "target", "FTE" = "fte", "Segment" = "segment")
       
       write.csv(seg.total, file, row.names = FALSE, fileEncoding = "GB2312")
     }
@@ -1725,6 +1840,9 @@ server <- function(input, output, session) {
     },
     
     content = function(file) {
+      prov.data <- 
+      
+      
       if (is.na(input$kPotnCtrb)) {
         kProp <- 0
       } else {

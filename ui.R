@@ -165,13 +165,17 @@ ui <- dashboardPage(
             collapsible = FALSE,
             width = 12,
             fluidRow(
+              column(12,
+                     tags$div(plotlyOutput("ActualPlot1")))
+            ),
+            br(),
+            fluidRow(
               column(6,
-                     br(),
-                     br(),
-                     tags$div(plotlyOutput("ActualPlot1", height = "auto"))),
+                     tags$div(selectInput("actual.sku1", label = "Selection SKU", choices = "", multiple = TRUE)),
+                     tags$div(plotlyOutput("ActualPlot2"))),
               column(6,
-                     tags$div(selectInput("actual.sku", label = "Selection SKU", choices = "", multiple = TRUE)),
-                     tags$div(plotlyOutput("ActualPlot2")))
+                     tags$div(selectInput("actual.sku2", label = "Selection SKU", choices = "", multiple = TRUE)),
+                     tags$div(plotlyOutput("ActualPlot3")))
             )
           )
         ),
@@ -222,29 +226,39 @@ ui <- dashboardPage(
             br(),
             fluidRow(
               box(
+                title = "Decile Situation",
+                status = "primary",
                 solidHeader = TRUE,
                 collapsible = FALSE,
                 width = 12,
-                tags$div(
-                  column(3, selectInput("covered.sku", label = "Selection SKU", choices = "", multiple = TRUE)),
-                  column(7),
-                  column(2,
-                         br(),
-                         tags$div(downloadButton(outputId = "DownloadHospital", label = "Download", style = "width:100px; color:#000;"),
-                                  style = "display:inline-block; width:100%; text-align:center;"))
-                ),
-                style = "background:#C8E6FF;"
-              )
-            ),
-            # br(),
-            fluidRow(
-              box(
-                solidHeader = TRUE,
-                collapsible = FALSE,
-                width = 12,
-                tags$div(plotlyOutput("SharePlot"))
+                fluidRow(
+                  column(6,
+                         tags$div(selectInput("covered.sku1", label = "Selection SKU", choices = "", multiple = TRUE)),
+                         tags$div(plotlyOutput("SharePlot"))),
+                  column(6,
+                         tags$div(selectInput("covered.sku2", label = "Selection SKU", choices = "", multiple = TRUE)),
+                         tags$div(plotlyOutput("DecilePlot")))
+                )
+                # tags$div(
+                #   column(3, selectInput("covered.sku", label = "Selection SKU", choices = "", multiple = TRUE)),
+                #   column(7),
+                #   column(2,
+                #          br(),
+                #          tags$div(downloadButton(outputId = "DownloadHospital", label = "Download", style = "width:100px; color:#000;"),
+                #                   style = "display:inline-block; width:100%; text-align:center;"))
+                # ),
+                # style = "background:#C8E6FF;"
               )
             )
+            # br(),
+            # fluidRow(
+            #   box(
+            #     solidHeader = TRUE,
+            #     collapsible = FALSE,
+            #     width = 12,
+            #     tags$div(plotlyOutput("SharePlot"))
+            #   )
+            # )
           )
         )
       ),
