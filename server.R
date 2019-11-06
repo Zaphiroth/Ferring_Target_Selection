@@ -66,9 +66,6 @@ server <- function(input, output, session) {
     colnames(raw) <- c("sku", "hospital", "hosp_level", "province", "city", "tier", 
                        "potential0", "potential1", "is", "target", "flag")
     
-    # decile_map <- data.frame(group = 1:10,
-    #                          decile = c("D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10"))
-    
     raw <- raw %>% 
       group_by(sku) %>% 
       arrange(-potential0) %>% 
@@ -300,6 +297,7 @@ server <- function(input, output, session) {
                   potential1 = sum(potential1, na.rm = TRUE),
                   target = sum(target, na.rm = TRUE)) %>% 
         ungroup() %>% 
+        arrange(-potential0) %>% 
         mutate(potential0_cumsum = cumsum(potential0),
                potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
                productivity = target / fte,
@@ -864,12 +862,12 @@ server <- function(input, output, session) {
       plot1 <- plot1 %>% 
         add_trace(x = plot.data$decile,
                   y = plot.data$remain,
-                  name = "Potential",
+                  name = "Potential(EUR)",
                   type = "bar",
                   color = I(options()$uncovered.color)) %>% 
         add_trace(x = plot.data$decile,
                   y = plot.data$target,
-                  name = "Covered target",
+                  name = "Covered target(EUR)",
                   type = "bar",
                   color = I(options()$covered.color)) %>% 
         layout(
@@ -1392,12 +1390,12 @@ server <- function(input, output, session) {
       plot1 <- plot1 %>% 
         add_trace(x = plot.data$decile,
                   y = plot.data$remain,
-                  name = "Potential",
+                  name = "Potential(EUR)",
                   type = "bar",
                   color = I(options()$uncovered.color)) %>% 
         add_trace(x = plot.data$decile,
                   y = plot.data$target,
-                  name = "Covered target",
+                  name = "Covered target(EUR)",
                   type = "bar",
                   color = I(options()$covered.color)) %>% 
         layout(
@@ -1689,27 +1687,28 @@ server <- function(input, output, session) {
                                    0,
                                    market_share))
     
+    scenario.hospital <- total.m %>% 
+      filter(flag == 0) %>% 
+      filter(potential0_cumctrb <= scenario1$kPotnCtrb)
+    
     if (input$growth_share == "Growth Rate") {
       if (input$cover) {
-        scenario.hospital <- total.m %>% 
-          filter(flag == 0) %>% 
-          filter(potential0_cumctrb <= scenario1$kPotnCtrb) %>% 
-          filter(growth >= scenario1$kIndex) %>% 
-          bind_rows(total.m[total.m$flag == 1, ])
+        scenario.hospital <- scenario.hospital %>% 
+          filter(growth >= scenario1$kIndex)
       }
       
     } else if (input$growth_share == "Market Share") {
       if (input$cover) {
-        scenario.hospital <- total.m %>% 
-          filter(flag == 0) %>% 
-          filter(potential0_cumctrb <= scenario1$kPotnCtrb) %>% 
-          filter(market_share >= scenario1$kIndex) %>% 
-          bind_rows(total.m[total.m$flag == 1, ])
+        scenario.hospital <- scenario.hospital %>% 
+          filter(market_share >= scenario1$kIndex)
       }
       
     } else {
       return(NULL)
     }
+    
+    scenario.hospital <- scenario.hospital %>% 
+      bind_rows(total.m[total.m$flag == 1, ])
     
     scenario <- total %>% 
       filter(hospital %in% scenario.hospital$hospital)
@@ -1784,27 +1783,29 @@ server <- function(input, output, session) {
                                    0,
                                    market_share))
     
+    scenario.hospital <- total.m %>% 
+      filter(flag == 0) %>% 
+      filter(potential0_cumctrb <= scenario2$kPotnCtrb)
+    
     if (input$growth_share == "Growth Rate") {
       if (input$cover) {
-        scenario.hospital <- total.m %>% 
-          filter(flag == 0) %>% 
-          filter(potential0_cumctrb <= scenario2$kPotnCtrb) %>% 
-          filter(growth >= scenario2$kIndex) %>% 
-          bind_rows(total.m[total.m$flag == 1, ])
+        scenario.hospital <- scenario.hospital %>% 
+          filter(growth >= scenario2$kIndex)
       }
       
     } else if (input$growth_share == "Market Share") {
       if (input$cover) {
-        scenario.hospital <- total.m %>% 
-          filter(flag == 0) %>% 
-          filter(potential0_cumctrb <= scenario2$kPotnCtrb) %>% 
-          filter(market_share >= scenario2$kIndex) %>% 
-          bind_rows(total.m[total.m$flag == 1, ])
+        scenario.hospital <- scenario.hospital %>% 
+          filter(market_share >= scenario2$kIndex)
+          
       }
       
     } else {
       return(NULL)
     }
+    
+    scenario.hospital <- scenario.hospital %>% 
+      bind_rows(total.m[total.m$flag == 1, ])
     
     scenario <- total %>% 
       filter(hospital %in% scenario.hospital$hospital)
@@ -1920,8 +1921,8 @@ server <- function(input, output, session) {
         left_join(seg.info, by = "hospital") %>% 
         select("Sku" = "sku", "Hospital" = "hospital", "Hospital level" = "hosp_level", 
                "Decile" = "decile", "Province" = "province", "City" = "city", "Tier" = "tier", 
-               "Actiual target hospital" = "is", "Flag" = "flag", "Potential" = "potential0", 
-               "Target" = "target", "FTE" = "fte", "Segment" = "segment")
+               "Actiual target hospital" = "is", "Flag" = "flag", "Potential(EUR)" = "potential0", 
+               "Target(EUR)" = "target", "FTE" = "fte", "Segment" = "segment")
       
       write.csv(seg.data, file, row.names = FALSE, fileEncoding = "GB2312")
     }
@@ -1988,8 +1989,8 @@ server <- function(input, output, session) {
         mutate(uncovered_hospital_num = total_hospital_num - covered_hospital_num,
                uncovered_city_num = total_city_num - covered_city_num) %>% 
         select("Sku" = "sku", "Province" = "province", "Total hospital number" = "total_hospital_num", 
-               "Total city number" = "total_city_num", "Potential" = "total_potential0", 
-               "Target" = "total_target", "FTE" = "total_fte", "Actual hospital number" = "actual_hospital_num", 
+               "Total city number" = "total_city_num", "Potential(EUR)" = "total_potential0", 
+               "Target(EUR)" = "total_target", "FTE" = "total_fte", "Actual hospital number" = "actual_hospital_num", 
                "Actual city number" = "actual_city_num", "Covered hospital number" = "covered_hospital_num", 
                "Covered city number" = "covered_city_num", "Uncovered hospital number" = "uncovered_hospital_num", 
                "Uncovered city number" = "uncovered_city_num")
@@ -2008,8 +2009,8 @@ server <- function(input, output, session) {
         bind_rows(CalcData()$data1) %>% 
         select("Sku" = "sku", "Hospital" = "hospital", "Hospital level" = "hosp_level", 
                "Decile" = "decile", "Province" = "province", "City" = "city", "Tier" = "tier", 
-               "Actiual target hospital" = "is", "Flag" = "flag", "Potential" = "potential0", 
-               "Target" = "target", "FTE" = "fte")
+               "Actiual target hospital" = "is", "Flag" = "flag", "Potential(EUR)" = "potential0", 
+               "Target(EUR)" = "target", "FTE" = "fte")
       
       write.csv(total.data, file, row.names = FALSE, fileEncoding = "GB2312")
     }
@@ -2037,8 +2038,8 @@ server <- function(input, output, session) {
         mutate(market_share = target / potential0) %>% 
         select("Sku" = "sku", "Hospital" = "hospital", "Hospital level" = "hosp_level", 
                "Decile" = "decile", "Province" = "province", "City" = "city", "Tier" = "tier", 
-               "Actiual target hospital" = "is", "Flag" = "flag", "Potential" = "potential0", 
-               "Target" = "target", "FTE" = "fte", "Market share" = "market_share")
+               "Actiual target hospital" = "is", "Flag" = "flag", "Potential(EUR)" = "potential0", 
+               "Target(EUR)" = "target", "FTE" = "fte", "Market share" = "market_share")
       
       scenario1.data <- CalcData()$data2 %>% 
         bind_rows(CalcData()$data1) %>% 
@@ -2046,8 +2047,8 @@ server <- function(input, output, session) {
         mutate(market_share = target / potential0) %>% 
         select("Sku" = "sku", "Hospital" = "hospital", "Hospital level" = "hosp_level", 
                "Decile" = "decile", "Province" = "province", "City" = "city", "Tier" = "tier", 
-               "Actiual target hospital" = "is", "Flag" = "flag", "Potential" = "potential0", 
-               "Target" = "target", "FTE" = "fte", "Market share" = "market_share")
+               "Actiual target hospital" = "is", "Flag" = "flag", "Potential(EUR)" = "potential0", 
+               "Target(EUR)" = "target", "FTE" = "fte", "Market share" = "market_share")
       
       scenario2.data <- CalcData()$data2 %>% 
         bind_rows(CalcData()$data1) %>% 
@@ -2055,8 +2056,8 @@ server <- function(input, output, session) {
         mutate(market_share = target / potential0) %>% 
         select("Sku" = "sku", "Hospital" = "hospital", "Hospital level" = "hosp_level", 
                "Decile" = "decile", "Province" = "province", "City" = "city", "Tier" = "tier", 
-               "Actiual target hospital" = "is", "Flag" = "flag", "Potential" = "potential0", 
-               "Target" = "target", "FTE" = "fte", "Market share" = "market_share")
+               "Actiual target hospital" = "is", "Flag" = "flag", "Potential(EUR)" = "potential0", 
+               "Target(EUR)" = "target", "FTE" = "fte", "Market share" = "market_share")
       
       wb <- createWorkbook()
       addWorksheet(wb, "Actual")

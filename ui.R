@@ -275,7 +275,7 @@ ui <- dashboardPage(
             width = 12,
             tags$div(
               column(6, selectInput("dimension", label = "Dimension", 
-                                    choices = c("SKU" = "sku", "Province" = "province", "City" = "city", 
+                                    choices = c("Sku" = "sku", "Province" = "province", "City" = "city", 
                                                 "City tier" = "tier", "Hospital level" = "hosp_level"),
                                     selected = c("sku", "province", "city", "tier", "hosp_level"), multiple = TRUE)),
               column(4),
