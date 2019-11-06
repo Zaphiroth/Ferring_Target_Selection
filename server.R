@@ -97,7 +97,7 @@ server <- function(input, output, session) {
     ) %>% 
       setDF() %>% 
       select(`大区`, `大区经理`, `地区1`, `地区2`, `地区经理`, `代表区域`, `代表`, `产品组`, `医院编码`, 
-             `医院名称`, `产品编码`, `产品名称`, `MAT 1905（EUR）`)
+             `医院名称`, `产品编码`, `产品名称`, `Target（EUR）`)
     colnames(dtbt) <- c("大区", "大区经理", "地区1", "地区2", "地区经理", "代表区域", "代表", "产品组", 
                         "医院编码", "医院名称", "产品编码", "产品名称", "mat")
     
@@ -690,14 +690,14 @@ server <- function(input, output, session) {
           #   yref = "paper"
           # ),
           xaxis = list(
-            title = "",
+            title = "Unit: Thousand",
             type = "category",
             categoryorder = "array",
             categoryarray = ~plot.data.m$section,
             mirror = "ticks"
           ),
           yaxis = list(
-            title = "Unit: Thousand",
+            title = "",
             showticklabels = FALSE,
             mirror = "ticks"
           )
@@ -1672,6 +1672,7 @@ server <- function(input, output, session) {
                 potential1 = sum(potential1, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
+      arrange(-potential0) %>% 
       mutate(potential0_cumsum = cumsum(potential0),
              potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
              productivity = target / fte,
@@ -1714,6 +1715,10 @@ server <- function(input, output, session) {
       filter(hospital %in% scenario.hospital$hospital)
     
     scenario_aggr <- scenario %>% 
+      group_by(hospital, city) %>% 
+      summarise(target = sum(target, na.rm = TRUE),
+                fte = sum(fte, na.rm = TRUE)) %>% 
+      ungroup() %>% 
       group_by(city) %>% 
       summarise(hospital_num = n(),
                 target = sum(target, na.rm = TRUE),
@@ -1768,6 +1773,7 @@ server <- function(input, output, session) {
                 potential1 = sum(potential1, na.rm = TRUE),
                 target = sum(target, na.rm = TRUE)) %>% 
       ungroup() %>% 
+      arrange(-potential0) %>% 
       mutate(potential0_cumsum = cumsum(potential0),
              potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
              productivity = target / fte,
@@ -1797,7 +1803,6 @@ server <- function(input, output, session) {
       if (input$cover) {
         scenario.hospital <- scenario.hospital %>% 
           filter(market_share >= scenario2$kIndex)
-          
       }
       
     } else {
@@ -1811,6 +1816,10 @@ server <- function(input, output, session) {
       filter(hospital %in% scenario.hospital$hospital)
     
     scenario_aggr <- scenario %>% 
+      group_by(hospital, city) %>% 
+      summarise(target = sum(target, na.rm = TRUE),
+                fte = sum(fte, na.rm = TRUE)) %>% 
+      ungroup() %>% 
       group_by(city) %>% 
       summarise(hospital_num = n(),
                 target = sum(target, na.rm = TRUE),
