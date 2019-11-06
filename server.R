@@ -35,12 +35,14 @@
 ## save scenario ----
 scenario1 <- list(kPotnCtrb = 0,
                   kIndex = -Inf,
+                  sku = NULL,
                   aban = NULL,
                   productivity = 0,
                   growth = -Inf)
 
 scenario2 <- list(kPotnCtrb = 0,
                   kIndex = -Inf,
+                  sku = NULL,
                   aban = NULL,
                   productivity = 0,
                   growth = -Inf)
@@ -1592,6 +1594,7 @@ server <- function(input, output, session) {
     
     scenario1 <<- list(kPotnCtrb = kProp,
                        kIndex = kIndex,
+                       sku = input$sku,
                        aban = input$aban,
                        productivity = kProductivity,
                        growth = kGrowth)
@@ -1636,34 +1639,80 @@ server <- function(input, output, session) {
     
     scenario2 <<- list(kPotnCtrb = kProp,
                        kIndex = kIndex,
+                       sku = input$sku,
                        aban = input$aban,
                        productivity = kProductivity,
                        growth = kGrowth)
   })
   
   Scenario1 <- eventReactive(input$record1, {
-    if (is.null(CalcData()) | is.null(SegData())) {
+    if (is.null(raw())) {
       return(NULL)
     }
     
-    scenario <- SegData()$total %>% 
-      filter(potential0_cumctrb <= scenario1$kPotnCtrb)
+    total <- raw()[raw()$flag == 0, ] %>% 
+      filter(sku %in% scenario1$sku) %>% 
+      filter(!(province %in% scenario1$aban)) %>% 
+      bind_rows(raw()[raw()$flag == 1, ]) %>% 
+      unite("doc_seg", sku, decile, remove = FALSE, sep = "") %>% 
+      left_join(rules()$doctor_num, by = "doc_seg") %>% 
+      left_join(rules()$doctor_freq, by = "sku") %>% 
+      cbind(rules()$work_time) %>% 
+      mutate(freq = num_a*freq_a + num_b*freq_b + num_c*freq_c + num_d*freq_d,
+             fte = freq / call * month / day) %>% 
+      group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
+      summarise(fte = sum(fte, na.rm = TRUE),
+                potential0 = sum(potential0, na.rm = TRUE),
+                potential1 = sum(potential1, na.rm = TRUE),
+                target = sum(target, na.rm = TRUE)) %>% 
+      ungroup()
+    
+    total.m <- total %>% 
+      group_by(hospital, province, city, flag) %>% 
+      summarise(fte = sum(fte, na.rm = TRUE),
+                potential0 = sum(potential0, na.rm = TRUE),
+                potential1 = sum(potential1, na.rm = TRUE),
+                target = sum(target, na.rm = TRUE)) %>% 
+      ungroup() %>% 
+      mutate(potential0_cumsum = cumsum(potential0),
+             potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
+             productivity = target / fte,
+             productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
+                                   0,
+                                   productivity),
+             growth = potential1 / potential0 - 1,
+             growth = ifelse(is.na(growth),
+                             0,
+                             growth),
+             market_share = target / potential0,
+             market_share = ifelse(is.na(market_share),
+                                   0,
+                                   market_share))
     
     if (input$growth_share == "Growth Rate") {
       if (input$cover) {
-        scenario <- scenario %>% 
-          filter(growth >= scenario1$kIndex)
+        scenario.hospital <- total.m %>% 
+          filter(flag == 0) %>% 
+          filter(potential0_cumctrb <= scenario1$kPotnCtrb) %>% 
+          filter(growth >= scenario1$kIndex) %>% 
+          bind_rows(total.m[total.m$flag == 1, ])
       }
       
     } else if (input$growth_share == "Market Share") {
       if (input$cover) {
-        scenario <- scenario %>% 
-          filter(market_share >= scenario1$kIndex)
+        scenario.hospital <- total.m %>% 
+          filter(flag == 0) %>% 
+          filter(potential0_cumctrb <= scenario1$kPotnCtrb) %>% 
+          filter(market_share >= scenario1$kIndex) %>% 
+          bind_rows(total.m[total.m$flag == 1, ])
       }
       
     } else {
       return(NULL)
     }
+    
+    scenario <- total %>% 
+      filter(hospital %in% scenario.hospital$hospital)
     
     scenario_aggr <- scenario %>% 
       group_by(city) %>% 
@@ -1692,28 +1741,73 @@ server <- function(input, output, session) {
   })
   
   Scenario2 <- eventReactive(input$record2, {
-    if (is.null(CalcData()) | is.null(SegData())) {
+    if (is.null(raw())) {
       return(NULL)
     }
     
-    scenario <- SegData()$total %>% 
-      filter(potential0_cumctrb <= scenario2$kPotnCtrb)
+    total <- raw()[raw()$flag == 0, ] %>% 
+      filter(sku %in% scenario2$sku) %>% 
+      filter(!(province %in% scenario2$aban)) %>% 
+      bind_rows(raw()[raw()$flag == 1, ]) %>% 
+      unite("doc_seg", sku, decile, remove = FALSE, sep = "") %>% 
+      left_join(rules()$doctor_num, by = "doc_seg") %>% 
+      left_join(rules()$doctor_freq, by = "sku") %>% 
+      cbind(rules()$work_time) %>% 
+      mutate(freq = num_a*freq_a + num_b*freq_b + num_c*freq_c + num_d*freq_d,
+             fte = freq / call * month / day) %>% 
+      group_by(sku, hospital, hosp_level, decile, province, city, tier, is, flag) %>% 
+      summarise(fte = sum(fte, na.rm = TRUE),
+                potential0 = sum(potential0, na.rm = TRUE),
+                potential1 = sum(potential1, na.rm = TRUE),
+                target = sum(target, na.rm = TRUE)) %>% 
+      ungroup()
+    
+    total.m <- total %>% 
+      group_by(hospital, province, city, flag) %>% 
+      summarise(fte = sum(fte, na.rm = TRUE),
+                potential0 = sum(potential0, na.rm = TRUE),
+                potential1 = sum(potential1, na.rm = TRUE),
+                target = sum(target, na.rm = TRUE)) %>% 
+      ungroup() %>% 
+      mutate(potential0_cumsum = cumsum(potential0),
+             potential0_cumctrb = potential0_cumsum / sum(potential0, na.rm = TRUE) * 100,
+             productivity = target / fte,
+             productivity = ifelse(is.na(productivity) | is.nan(productivity) | is.infinite(productivity),
+                                   0,
+                                   productivity),
+             growth = potential1 / potential0 - 1,
+             growth = ifelse(is.na(growth),
+                             0,
+                             growth),
+             market_share = target / potential0,
+             market_share = ifelse(is.na(market_share),
+                                   0,
+                                   market_share))
     
     if (input$growth_share == "Growth Rate") {
       if (input$cover) {
-        scenario <- scenario %>% 
-          filter(growth >= scenario2$kIndex)
+        scenario.hospital <- total.m %>% 
+          filter(flag == 0) %>% 
+          filter(potential0_cumctrb <= scenario2$kPotnCtrb) %>% 
+          filter(growth >= scenario2$kIndex) %>% 
+          bind_rows(total.m[total.m$flag == 1, ])
       }
       
     } else if (input$growth_share == "Market Share") {
       if (input$cover) {
-        scenario <- scenario %>% 
-          filter(market_share >= scenario2$kIndex)
+        scenario.hospital <- total.m %>% 
+          filter(flag == 0) %>% 
+          filter(potential0_cumctrb <= scenario2$kPotnCtrb) %>% 
+          filter(market_share >= scenario2$kIndex) %>% 
+          bind_rows(total.m[total.m$flag == 1, ])
       }
       
     } else {
       return(NULL)
     }
+    
+    scenario <- total %>% 
+      filter(hospital %in% scenario.hospital$hospital)
     
     scenario_aggr <- scenario %>% 
       group_by(city) %>% 
