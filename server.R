@@ -1933,7 +1933,7 @@ server <- function(input, output, session) {
                "Actiual target hospital" = "is", "Flag" = "flag", "Potential(EUR)" = "potential0", 
                "Target(EUR)" = "target", "FTE" = "fte", "Segment" = "segment")
       
-      write.csv(seg.data, file, row.names = FALSE, fileEncoding = "GB2312")
+      write_excel_csv(seg.data, file)
     }
   )
   
@@ -2004,7 +2004,7 @@ server <- function(input, output, session) {
                "Covered city number" = "covered_city_num", "Uncovered hospital number" = "uncovered_hospital_num", 
                "Uncovered city number" = "uncovered_city_num")
       
-      write.csv(prov.data, file, row.names = FALSE, fileEncoding = "GB2312")
+      write_excel_csv(prov.data, file)
     }
   )
   
@@ -2021,7 +2021,7 @@ server <- function(input, output, session) {
                "Actiual target hospital" = "is", "Flag" = "flag", "Potential(EUR)" = "potential0", 
                "Target(EUR)" = "target", "FTE" = "fte")
       
-      write.csv(total.data, file, row.names = FALSE, fileEncoding = "GB2312")
+      write_excel_csv(total.data, file)
     }
   )
   
@@ -2033,7 +2033,7 @@ server <- function(input, output, session) {
     content = function(file) {
       total.data <- DimensionData()$data
       
-      write.csv(total.data, file, row.names = FALSE, fileEncoding = "GB2312")
+      write_excel_csv(total.data, file)
     }
   )
   
